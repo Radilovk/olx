@@ -71,13 +71,16 @@
                     threadElement.dataset.threadId = thread.id;
                     if (thread.unread_count > 0) threadElement.classList.add('unread');
                     
+                    // --- ПРОМЯНАТА Е ТУК ---
+                    // Добавяме `?.` и `??`, за да избегнем грешка, ако `interlocutor` липсва
+                    const interlocutorName = thread.interlocutor?.name ?? 'Неизвестен потребител';
+
                     threadElement.innerHTML = `
-                        <p>Обява: ${thread.advert_id || 'N/A'}</p>
-                        <small>От: ${thread.interlocutor.name} (${thread.unread_count} нови)</small>
+                        <p>Обява ID: ${thread.advert_id || 'N/A'}</p>
+                        <small>От: ${interlocutorName} (${thread.unread_count} нови)</small>
                     `;
                     
                     threadElement.addEventListener('click', () => {
-                        // Маркираме текущия елемент като активен
                         document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
                         threadElement.classList.add('active');
                         displayMessages(thread.id);
@@ -95,7 +98,7 @@
             const messagesView = document.getElementById('messages-view');
             const replyArea = document.getElementById('reply-area');
             messagesView.innerHTML = '<div id="messages-loader">Зареждам съобщенията...</div>';
-            replyArea.style.display = 'flex'; // Показваме полето за отговор
+            replyArea.style.display = 'flex';
 
             try {
                 const response = await fetch(`${API_BASE_URL}/api/threads/${threadId}/messages`);
@@ -103,7 +106,7 @@
                 
                 const messages = await response.json();
                 
-                messagesView.innerHTML = '<div id="messages-container"></div>'; // Контейнер за подравняване
+                messagesView.innerHTML = '<div id="messages-container"></div>';
                 const container = document.getElementById('messages-container');
                 
                 if (messages.length === 0) {
@@ -113,12 +116,12 @@
 
                 messages.forEach(msg => {
                     const msgElement = document.createElement('div');
-                    msgElement.className = `message ${msg.type}`; // 'sent' или 'received'
+                    msgElement.className = `message ${msg.type}`;
                     msgElement.textContent = msg.text;
                     container.appendChild(msgElement);
                 });
 
-                messagesView.scrollTop = messagesView.scrollHeight; // Скролираме до долу
+                messagesView.scrollTop = messagesView.scrollHeight;
 
             } catch (error) {
                 messagesView.innerHTML = `<p style="color: red;">${error.message}</p>`;
