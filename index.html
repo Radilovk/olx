@@ -50,7 +50,8 @@
         #modal-body input, #modal-body textarea { width:100%; margin-bottom:10px; }
         #modal .modal-actions { text-align:right; }
         #modal .modal-actions button { margin-left:5px; }
-        #back-button { display: none; margin: 5px; padding: 5px 10px; border: 1px solid #ccc; background: none; border-radius: 5px; cursor: pointer; }
+        #back-button, #close-settings-button { margin: 5px; padding: 5px 10px; border: 1px solid #ccc; background: none; border-radius: 5px; cursor: pointer; }
+        #back-button { display: none; }
 
         /* --- Main Content Area --- */
         #main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; }
@@ -153,6 +154,7 @@
 
             <!-- Изглед за настройки -->
             <div id="settings-view" class="hidden">
+                <button id="close-settings-button">⬅️ Назад</button>
                 <h2>Настройки на AI Асистента</h2>
                 <p>Тук можете да промените системния промпт, който AI използва, за да генерира отговори. Опишете каква роля искате да играе, какъв тон да използва и т.н.</p>
                 <textarea id="prompt-textarea"></textarea>
@@ -199,6 +201,7 @@
             placeholderView: document.getElementById('placeholder-view'),
             chatView: document.getElementById('chat-view'),
             settingsView: document.getElementById('settings-view'),
+            closeSettingsButton: document.getElementById('close-settings-button'),
             messagesView: document.getElementById('messages-view'),
             replyText: document.getElementById('reply-text'),
             sendButton: document.getElementById('send-button'),
@@ -234,6 +237,7 @@
             elements.analyzerButton.addEventListener('click', analyzeThread);
             elements.broadcastButton.addEventListener('click', sendBroadcastMessage);
             elements.savePromptButton.addEventListener('click', savePrompt);
+            elements.closeSettingsButton.addEventListener('click', closeSettingsView);
             elements.backButton.addEventListener('click', showSidebarOnMobile);
         });
 
@@ -740,6 +744,14 @@
                 elements.promptTextarea.value = data.prompt || '';
             } catch (error) {
                 elements.promptTextarea.value = `Грешка при зареждане: ${error.message}`;
+            }
+        }
+
+        function closeSettingsView() {
+            if (isMobile()) {
+                showSidebarOnMobile();
+            } else {
+                showView(currentThreadId ? elements.chatView : elements.placeholderView);
             }
         }
 
