@@ -156,6 +156,9 @@
                 <h2>Настройки на AI Асистента</h2>
                 <p>Тук можете да промените системния промпт, който AI използва, за да генерира отговори. Опишете каква роля искате да играе, какъв тон да използва и т.н.</p>
                 <textarea id="prompt-textarea"></textarea>
+                <label style="display:block;margin-top:10px;">
+                    <input type="checkbox" id="auto-reply-checkbox"> Автоматичен AI отговор при ново съобщение
+                </label>
                 <button id="save-prompt-button">Запази промпта</button>
                 <div id="status-message"></div>
             </div>
@@ -180,6 +183,7 @@
         
         // --- STATE ---
         let currentThreadId = null;
+        let autoReplyEnabled = JSON.parse(localStorage.getItem('autoReply') || 'false');
 
         // --- DOM ELEMENTS ---
         const elements = {
@@ -205,6 +209,7 @@
             promptTextarea: document.getElementById('prompt-textarea'),
             savePromptButton: document.getElementById('save-prompt-button'),
             statusMessage: document.getElementById('status-message'),
+            autoReplyCheckbox: document.getElementById('auto-reply-checkbox'),
             mainContent: document.getElementById('main-content'),
             backButton: document.getElementById('back-button'),
         };
@@ -328,6 +333,11 @@
                     const lastDateRaw = meta.lastDate || thread.last_message_date || thread.last_message?.created_at || thread.last_message?.date || thread.updated_at;
                     const lastDate = formatDate(lastDateRaw);
                     if (!isRead) threadElement.classList.add('unread');
+                    if (autoReplyEnabled && !isRead && meta.lastAutoReply !== lastDateRaw) {
+                        autoReply(thread.id);
+                        meta.lastAutoReply = lastDateRaw;
+                        saveThreadMeta(thread.id, meta);
+                    }
 
                     const conversationId = thread.id;
                     const advertTitle = meta.advertTitle || '';
@@ -484,6 +494,25 @@
                 elements.replyText.value = `Грешка при генериране: ${error.message}`;
             } finally {
                 setButtonLoading(elements.generateAiButton, false, '✨ Генерирай');
+            }
+        }
+
+        async function autoReply(threadId) {
+            try {
+                const genRes = await authorizedFetch(`${API_BASE_URL}/api/generate-reply`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ threadId })
+                });
+                const genData = await genRes.json();
+                if (!genRes.ok) throw new Error(genData.error);
+                await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/send-message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: genData.reply })
+                });
+            } catch (err) {
+                console.error('Автоматичният отговор се провали:', err);
             }
         }
 
@@ -694,8 +723,10 @@
         // --- SETTINGS FUNCTIONS ---
         async function showSettingsView() {
             showView(elements.settingsView);
+            showThreadOnMobile();
             elements.statusMessage.textContent = '';
             elements.promptTextarea.value = 'Зареждам текущия промпт...';
+            elements.autoReplyCheckbox.checked = autoReplyEnabled;
             try {
                 const response = await authorizedFetch(`${API_BASE_URL}/api/prompt`);
                 if (!response.ok) throw new Error((await response.json()).error);
@@ -708,6 +739,7 @@
 
         async function savePrompt() {
             const newPrompt = elements.promptTextarea.value;
+            autoReplyEnabled = elements.autoReplyCheckbox.checked;
             setButtonLoading(elements.savePromptButton, true, 'Запазвам...');
             showStatusMessage('Запазвам...');
             try {
@@ -717,7 +749,8 @@
                     body: JSON.stringify({ prompt: newPrompt })
                 });
                 if (!response.ok) throw new Error((await response.json()).error);
-                showStatusMessage('Промптът е запазен успешно!', 'success');
+                localStorage.setItem('autoReply', JSON.stringify(autoReplyEnabled));
+                showStatusMessage('Настройките са запазени успешно!', 'success');
             } catch (error) {
                 showStatusMessage(`Грешка: ${error.message}`, 'error');
             } finally {
