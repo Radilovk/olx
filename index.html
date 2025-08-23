@@ -39,6 +39,19 @@
         .thread-meta { display: flex; flex-direction: column; gap: 4px; margin-left: 5px; }
         .thread-meta select, .thread-meta button { font-size: 11px; }
         .read-toggle, .note-button { background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 2px 4px; }
+        .tag-buttons { display: flex; gap: 4px; margin-top: 4px; }
+        .tag-buttons .tag-btn { width: 20px; height: 20px; border: 1px solid #ccc; border-radius: 3px; background-color: #f8f9fa; cursor: pointer; font-size: 12px; line-height: 18px; text-align: center; padding: 0; }
+        .tag-buttons .tag-btn.red { background-color: #f8d7da; }
+        .tag-buttons .tag-btn.red.active { background-color: #dc3545; color: #fff; }
+        .tag-buttons .tag-btn.blue { background-color: #d1ecf1; }
+        .tag-buttons .tag-btn.blue.active { background-color: #0d6efd; color: #fff; }
+        .tag-buttons .tag-btn.check.active { background-color: #d4edda; }
+        #modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; z-index:1000; }
+        #modal-overlay.hidden { display:none; }
+        #modal { background:#fff; padding:20px; border-radius:5px; width:300px; }
+        #modal-body input, #modal-body textarea { width:100%; margin-bottom:10px; }
+        #modal .modal-actions { text-align:right; }
+        #modal .modal-actions button { margin-left:5px; }
         #back-button { display: none; margin: 5px; padding: 5px 10px; border: 1px solid #ccc; background: none; border-radius: 5px; cursor: pointer; }
 
         /* --- Main Content Area --- */
@@ -131,6 +144,7 @@
                     </div>
                     <div id="analyzer-result" class="hidden"></div>
                 </div>
+                <div id="chat-tags" class="tag-buttons"></div>
                 <div id="messages-view"></div>
                 <div id="reply-area">
                     <textarea id="reply-text" rows="3" placeholder="Напишете отговор..."></textarea>
@@ -150,6 +164,16 @@
         </div>
     </div>
 
+    <div id="modal-overlay" class="hidden">
+        <div id="modal">
+            <h3 id="modal-title"></h3>
+            <div id="modal-body"></div>
+            <div class="modal-actions">
+                <button id="modal-save">Запази</button>
+                <button id="modal-close">Затвори</button>
+            </div>
+        </div>
+    </div>
     <script src="auth.js"></script>
     <script>
         // --- CONFIGURATION ---
@@ -319,6 +343,7 @@
                             <small class="advert-title">${advertTitle}</small>
                             <small class="last-date">Последно: ${lastDate}</small>
                         </div>
+                        <div class="tag-buttons">${createTagButtons(meta)}</div>
                         <div class="thread-meta">
                             <button class="read-toggle" title="Маркирай прочетено">${isRead ? '📖' : '📬'}</button>
                             <select class="order-status" name="order-status-${thread.id}">
@@ -330,12 +355,13 @@
                                 <option value="speedy"${shipping === 'speedy' ? ' selected' : ''}>Спиди</option>
                                 <option value="econt"${shipping === 'econt' ? ' selected' : ''}>Еконт</option>
                             </select>
-                            <button class="note-button" title="Бележка">📝</button>
                             <button class="details-button" title="Обнови детайли">🔄</button>
                         </div>
                     `;
 
                     const info = threadElement.querySelector('.thread-item-info');
+                    const tagContainer = threadElement.querySelector('.tag-buttons');
+                    attachTagButtonEvents(tagContainer, meta, thread.id);
                     info.addEventListener('click', () => {
                         document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
                         threadElement.classList.add('active');
@@ -371,16 +397,6 @@
                         e.stopPropagation();
                         meta.shipping = e.target.value;
                         saveThreadMeta(thread.id, meta);
-                    });
-
-                    const noteBtn = threadElement.querySelector('.note-button');
-                    noteBtn.addEventListener('click', e => {
-                        e.stopPropagation();
-                        const newNote = prompt('Бележка за клиента:', meta.note || '');
-                        if (newNote !== null) {
-                            meta.note = newNote;
-                            saveThreadMeta(thread.id, meta);
-                        }
                     });
 
                     const detailsBtn = threadElement.querySelector('.details-button');
@@ -427,6 +443,7 @@
         async function displayMessages(threadId) {
             currentThreadId = threadId;
             showView(elements.chatView);
+            renderChatTags(threadId);
             elements.messagesView.innerHTML = '<div id="messages-loader">Зареждам съобщенията...</div>';
             elements.analyzerResult.classList.add('hidden');
             elements.analyzerInput.value = '';
@@ -460,6 +477,7 @@
                         meta.contactName = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name || meta.contactName;
                     }
                     saveThreadMeta(threadId, meta);
+                    renderChatTags(threadId);
                     const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
                     if (threadEl) {
                         const dateEl = threadEl.querySelector('.last-date');
@@ -585,6 +603,142 @@
             } finally {
                 setButtonLoading(elements.broadcastButton, false, `Изпрати на избраните (${selectedIds.length})`);
             }
+        }
+
+        // --- TAG BUTTONS FUNCTIONS ---
+        function createTagButtons(meta = {}) {
+            return `
+                <button class="tag-btn red ${meta.redMark ? 'active' : ''}" title="Червено"></button>
+                <button class="tag-btn blue ${meta.blueMark ? 'active' : ''}" title="Синьо"></button>
+                <button class="tag-btn check ${meta.checked ? 'active' : ''}" title="Отметка">${meta.checked ? '✓' : ''}</button>
+                <button class="tag-btn info" title="Данни">i</button>
+                <button class="tag-btn note" title="Бележка">@</button>
+            `;
+        }
+
+        function attachTagButtonEvents(container, meta, threadId) {
+            const redBtn = container.querySelector('.red');
+            const blueBtn = container.querySelector('.blue');
+            const checkBtn = container.querySelector('.check');
+            const infoBtn = container.querySelector('.info');
+            const noteBtn = container.querySelector('.note');
+
+            redBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                meta.redMark = !meta.redMark;
+                saveThreadMeta(threadId, meta);
+                updateThreadTagButtons(threadId);
+            });
+
+            blueBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                meta.blueMark = !meta.blueMark;
+                saveThreadMeta(threadId, meta);
+                updateThreadTagButtons(threadId);
+            });
+
+            checkBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                meta.checked = !meta.checked;
+                saveThreadMeta(threadId, meta);
+                updateThreadTagButtons(threadId);
+            });
+
+            infoBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                openInfoModal(threadId);
+            });
+
+            noteBtn.addEventListener('click', e => {
+                e.stopPropagation();
+                openNoteModal(threadId);
+            });
+        }
+
+        function updateThreadTagButtons(threadId) {
+            const meta = getThreadMeta(threadId);
+            const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
+            if (threadEl) {
+                const tagContainer = threadEl.querySelector('.tag-buttons');
+                if (tagContainer) {
+                    tagContainer.innerHTML = createTagButtons(meta);
+                    attachTagButtonEvents(tagContainer, meta, threadId);
+                }
+            }
+            if (currentThreadId === threadId) {
+                renderChatTags(threadId);
+            }
+        }
+
+        function renderChatTags(threadId) {
+            const container = document.getElementById('chat-tags');
+            if (!container) return;
+            const meta = getThreadMeta(threadId);
+            container.innerHTML = createTagButtons(meta);
+            attachTagButtonEvents(container, meta, threadId);
+        }
+
+        async function openInfoModal(threadId) {
+            const meta = getThreadMeta(threadId);
+            let info = meta.deliveryInfo || {};
+            if (!info.name && !info.phone && !info.address) {
+                try {
+                    const response = await authorizedFetch(`${API_BASE_URL}/api/analyze-thread`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ threadId, question: 'Извлечи имената, телефон и адреса за доставка. Формат: Name: <...>; Phone: <...>; Address: <...>' })
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        const answer = data.answer || '';
+                        const nameMatch = answer.match(/Name[:\-]?\s*(.*)/i);
+                        const phoneMatch = answer.match(/Phone[:\-]?\s*(.*)/i);
+                        const addressMatch = answer.match(/Address[:\-]?\s*(.*)/i);
+                        info = {
+                            name: nameMatch ? nameMatch[1].trim() : '',
+                            phone: phoneMatch ? phoneMatch[1].trim() : '',
+                            address: addressMatch ? addressMatch[1].trim() : ''
+                        };
+                    }
+                } catch (e) { }
+            }
+            showModal('Данни за доставка', `
+                <label>Имена:<input type="text" id="info-name" value="${info.name || ''}"></label>
+                <label>Телефон:<input type="text" id="info-phone" value="${info.phone || ''}"></label>
+                <label>Адрес:<textarea id="info-address" rows="3">${info.address || ''}</textarea></label>
+            `, () => {
+                meta.deliveryInfo = {
+                    name: document.getElementById('info-name').value.trim(),
+                    phone: document.getElementById('info-phone').value.trim(),
+                    address: document.getElementById('info-address').value.trim()
+                };
+                saveThreadMeta(threadId, meta);
+                updateThreadTagButtons(threadId);
+            });
+        }
+
+        function openNoteModal(threadId) {
+            const meta = getThreadMeta(threadId);
+            showModal('Бележка', `
+                <textarea id="note-text" rows="4" placeholder="Бележка...">${meta.note || ''}</textarea>
+            `, () => {
+                meta.note = document.getElementById('note-text').value.trim();
+                saveThreadMeta(threadId, meta);
+                updateThreadTagButtons(threadId);
+            });
+        }
+
+        function showModal(title, bodyHtml, onSave) {
+            const overlay = document.getElementById('modal-overlay');
+            document.getElementById('modal-title').textContent = title;
+            const body = document.getElementById('modal-body');
+            body.innerHTML = bodyHtml;
+            overlay.classList.remove('hidden');
+            document.getElementById('modal-save').onclick = () => {
+                onSave();
+                overlay.classList.add('hidden');
+            };
+            document.getElementById('modal-close').onclick = () => overlay.classList.add('hidden');
         }
 
         // --- SETTINGS FUNCTIONS ---
