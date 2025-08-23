@@ -25,14 +25,19 @@
         #broadcast-section button:disabled { background-color: #ccc; }
 
         /* --- Thread Item in Sidebar --- */
-        .thread-item { padding: 10px 15px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: center; }
+        .thread-item { padding: 10px 15px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: flex-start; }
         .thread-item:hover { background-color: #f0f0f0; }
         .thread-item.active { background-color: var(--light-blue); border-right: 3px solid var(--main-blue); }
         .thread-item input[type="checkbox"] { margin-right: 10px; }
         .thread-item-info { flex-grow: 1; }
         .thread-item-info p, .thread-item-info small { margin: 0; color: var(--text-light); }
-        .thread-item-info p { font-weight: 500; color: var(--text-dark); }
+        .thread-item-info p { font-weight: 500; color: var(--text-dark); display: flex; justify-content: space-between; align-items: center; }
+        .thread-item-info .short-ad-name { margin-left: 5px; flex-grow: 1; border: 0; border-bottom: 1px dashed #ccc; background: transparent; font-size: 12px; }
+        .thread-item-info .short-ad-name:focus { outline: none; border-bottom-color: var(--main-blue); }
         .thread-item.unread p { font-weight: bold; }
+        .thread-meta { display: flex; flex-direction: column; gap: 4px; margin-left: 5px; }
+        .thread-meta select, .thread-meta button { font-size: 11px; }
+        .read-toggle, .note-button { background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 2px 4px; }
 
         /* --- Main Content Area --- */
         #main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; }
@@ -212,23 +217,85 @@
                     const threadElement = document.createElement('div');
                     threadElement.className = 'thread-item';
                     threadElement.dataset.threadId = thread.id;
-                    if (thread.unread_count > 0) threadElement.classList.add('unread');
-                    
+
+                    const meta = getThreadMeta(thread.id);
+                    const isRead = meta.isRead ?? (thread.unread_count === 0);
+                    const shortName = meta.shortName || '';
+                    const orderStatus = meta.orderStatus || 'pending';
+                    const shipping = meta.shipping || '';
+                    const lastDate = formatDate(thread.last_message_date);
+                    if (!isRead) threadElement.classList.add('unread');
+
                     const interlocutorName = thread.interlocutor?.name ?? 'Неизвестен потребител';
 
                     threadElement.innerHTML = `
                         <input type="checkbox" class="thread-checkbox" data-id="${thread.id}">
                         <div class="thread-item-info">
-                            <p>${interlocutorName}</p>
-                            <small>Обява ID: ${thread.advert_id || 'N/A'} (${thread.unread_count} нови)</small>
+                            <p><span class="user-name">${interlocutorName}</span><input class="short-ad-name" value="${shortName}" placeholder="Кратко име"></p>
+                            <small>Последно: ${lastDate}</small>
+                        </div>
+                        <div class="thread-meta">
+                            <button class="read-toggle" title="Маркирай прочетено">${isRead ? '📖' : '📬'}</button>
+                            <select class="order-status">
+                                <option value="pending"${orderStatus === 'pending' ? ' selected' : ''}>Необработена</option>
+                                <option value="done"${orderStatus === 'done' ? ' selected' : ''}>Обработена</option>
+                            </select>
+                            <select class="shipping-method">
+                                <option value=""${shipping === '' ? ' selected' : ''}>Доставка</option>
+                                <option value="speedy"${shipping === 'speedy' ? ' selected' : ''}>Спиди</option>
+                                <option value="econt"${shipping === 'econt' ? ' selected' : ''}>Еконт</option>
+                            </select>
+                            <button class="note-button" title="Бележка">📝</button>
                         </div>
                     `;
-                    
-                    threadElement.querySelector('.thread-item-info').addEventListener('click', () => {
+
+                    const info = threadElement.querySelector('.thread-item-info');
+                    info.addEventListener('click', () => {
                         document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
                         threadElement.classList.add('active');
                         displayMessages(thread.id);
                     });
+
+                    const shortInput = threadElement.querySelector('.short-ad-name');
+                    shortInput.addEventListener('change', e => {
+                        e.stopPropagation();
+                        meta.shortName = e.target.value.trim();
+                        saveThreadMeta(thread.id, meta);
+                    });
+
+                    const readBtn = threadElement.querySelector('.read-toggle');
+                    readBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        meta.isRead = !meta.isRead;
+                        threadElement.classList.toggle('unread', !meta.isRead);
+                        readBtn.textContent = meta.isRead ? '📖' : '📬';
+                        saveThreadMeta(thread.id, meta);
+                    });
+
+                    const orderSelect = threadElement.querySelector('.order-status');
+                    orderSelect.addEventListener('change', e => {
+                        e.stopPropagation();
+                        meta.orderStatus = e.target.value;
+                        saveThreadMeta(thread.id, meta);
+                    });
+
+                    const shipSelect = threadElement.querySelector('.shipping-method');
+                    shipSelect.addEventListener('change', e => {
+                        e.stopPropagation();
+                        meta.shipping = e.target.value;
+                        saveThreadMeta(thread.id, meta);
+                    });
+
+                    const noteBtn = threadElement.querySelector('.note-button');
+                    noteBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        const newNote = prompt('Бележка за клиента:', meta.note || '');
+                        if (newNote !== null) {
+                            meta.note = newNote;
+                            saveThreadMeta(thread.id, meta);
+                        }
+                    });
+
                     elements.threadsList.appendChild(threadElement);
                 });
             } catch (error) {
@@ -420,6 +487,20 @@
         }
 
         // --- HELPER FUNCTIONS ---
+        function getThreadMeta(id) {
+            return JSON.parse(localStorage.getItem(`thread_meta_${id}`) || '{}');
+        }
+
+        function saveThreadMeta(id, data) {
+            localStorage.setItem(`thread_meta_${id}`, JSON.stringify(data));
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '---';
+            const d = new Date(dateStr);
+            return isNaN(d) ? '---' : d.toLocaleString('bg-BG');
+        }
+
         function setButtonLoading(button, isLoading, loadingText) {
             button.disabled = isLoading;
             if (isLoading) {
