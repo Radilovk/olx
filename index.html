@@ -139,10 +139,10 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { authFetch, refreshToken, API_BASE_URL } from './api.js';
         // --- CONFIGURATION ---
-        const API_BASE_URL = 'https://olx.radilov-k.workers.dev';
-        const AUTH_URL = 'https://www.olx.bg/oauth/authorize?response_type=code&client_id=200383&redirect_uri=https://olx.radilov-k.workers.dev/callback&scope=read+write+v2&state=random_string_12345';
+        const AUTH_URL = `https://www.olx.bg/oauth/authorize?response_type=code&client_id=200383&redirect_uri=${API_BASE_URL}/callback&scope=read+write+v2&state=random_string_12345`;
         
         // --- STATE ---
         let currentThreadId = null;
@@ -202,7 +202,11 @@
             elements.loader.classList.remove('hidden');
             elements.threadsList.innerHTML = '';
             try {
-                const response = await fetch(`${API_BASE_URL}/api/threads`);
+                let response = await authFetch('/api/threads');
+                if (response.status === 401) {
+                    await refreshToken();
+                    response = await authFetch('/api/threads');
+                }
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(`${errorData.error} <a href="${AUTH_URL}">Оторизирайте се отново</a>.`);
@@ -305,6 +309,18 @@
             }
         }
 
+        async function getAdvert(adId) {
+            let response = await authFetch(`/api/adverts/${adId}`);
+            if (response.status === 401) {
+                await refreshToken();
+                response = await authFetch(`/api/adverts/${adId}`);
+            }
+            if (!response.ok) {
+                throw new Error((await response.json()).error || 'Неуспешно зареждане на обявата.');
+            }
+            return await response.json();
+        }
+
         async function displayMessages(threadId) {
             currentThreadId = threadId;
             showView(elements.chatView);
@@ -313,7 +329,7 @@
             elements.analyzerInput.value = '';
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/threads/${threadId}/messages`);
+                const response = await authFetch(`/api/threads/${threadId}/messages`);
                 if (!response.ok) throw new Error('Неуспешно зареждане на съобщенията.');
                 
                 const messages = await response.json();
@@ -345,7 +361,7 @@
             elements.sendButton.textContent = '...';
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/threads/${currentThreadId}/send-message`, {
+                const response = await authFetch(`/api/threads/${currentThreadId}/send-message`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text })
@@ -368,7 +384,7 @@
             elements.replyText.value = 'AI генерира отговор, моля изчакайте...';
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/generate-reply`, {
+                const response = await authFetch('/api/generate-reply', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ threadId: currentThreadId })
@@ -394,7 +410,7 @@
             elements.analyzerResult.textContent = 'Анализирам...';
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/analyze-thread`, {
+                const response = await authFetch('/api/analyze-thread', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ threadId: currentThreadId, question })
@@ -435,7 +451,7 @@
 
             setButtonLoading(elements.broadcastButton, true, 'Изпращам...');
             try {
-                const response = await fetch(`${API_BASE_URL}/api/broadcast`, {
+                const response = await authFetch('/api/broadcast', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ threadIds: selectedIds, text: message })
@@ -458,7 +474,7 @@
             elements.statusMessage.textContent = '';
             elements.promptTextarea.value = 'Зареждам текущия промпт...';
             try {
-                const response = await fetch(`${API_BASE_URL}/api/prompt`);
+                const response = await authFetch('/api/prompt');
                 if (!response.ok) throw new Error((await response.json()).error);
                 const data = await response.json();
                 elements.promptTextarea.value = data.prompt || '';
@@ -472,7 +488,7 @@
             setButtonLoading(elements.savePromptButton, true, 'Запазвам...');
             showStatusMessage('Запазвам...');
             try {
-                const response = await fetch(`${API_BASE_URL}/api/prompt`, {
+                const response = await authFetch('/api/prompt', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: newPrompt })
