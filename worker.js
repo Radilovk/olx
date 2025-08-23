@@ -144,10 +144,13 @@ export default {
       if (!threadIds || !Array.isArray(threadIds) || threadIds.length === 0 || !text) {
           return jsonResponse({ error: "threadIds (array) and text are required." }, 400);
       }
+      if (!threadIds.every(id => Number.isInteger(Number(id)))) {
+          return jsonResponse({ error: "threadIds must contain only integers." }, 400);
+      }
 
       const accessToken = await getValidAccessToken(env);
       if (!accessToken) return jsonResponse({ error: "Authentication required." }, 401);
-      
+
       let sentCount = 0;
       for (const threadId of threadIds) {
           try {
