@@ -213,16 +213,20 @@
                 advertCache.set(id, advert);
                 return advert;
             }
-            let response = await authorizedFetch(`https://www.olx.bg/api/partner/adverts/${id}`);
-            if (response.status === 401) {
-                await refreshToken();
-                response = await authorizedFetch(`https://www.olx.bg/api/partner/adverts/${id}`);
+            try {
+                let response = await authorizedFetch(`https://www.olx.bg/api/partner/adverts/${id}`);
+                if (response.status === 401) {
+                    await refreshToken();
+                    response = await authorizedFetch(`https://www.olx.bg/api/partner/adverts/${id}`);
+                }
+                if (!response.ok) throw new Error('Advert fetch failed');
+                const advert = await response.json();
+                advertCache.set(id, advert);
+                localStorage.setItem(lsKey, JSON.stringify(advert));
+                return advert;
+            } catch (err) {
+                return null; // отказ от API
             }
-            if (!response.ok) throw new Error('Advert fetch failed');
-            const advert = await response.json();
-            advertCache.set(id, advert);
-            localStorage.setItem(lsKey, JSON.stringify(advert));
-            return advert;
         }
 
         async function fetchThreads() {
@@ -249,13 +253,17 @@
                     if (thread.advert_id) {
                         try {
                             const advert = await getAdvert(thread.advert_id);
-                            meta.advertTitle = advert.title || meta.advertTitle;
-                            meta.advertCreatedAt = advert.created_at || meta.advertCreatedAt;
-                            meta.contactName = advert.contact?.name || meta.contactName;
-                            saveThreadMeta(thread.id, meta);
+                            if (advert && advert.data) {
+                                meta.advertTitle = advert.data.title || meta.advertTitle;
+                                meta.advertCreatedAt = advert.data.created_at || meta.advertCreatedAt;
+                                meta.contactName = advert.data.contact?.name || meta.contactName;
+                            } else {
+                                meta.advertTitle = meta.advertTitle || '(невалидна обява)';
+                            }
                         } catch (err) {
-                            // ignore fetch errors
+                            meta.advertTitle = meta.advertTitle || '(невалидна обява)';
                         }
+                        saveThreadMeta(thread.id, meta);
                     }
 
                     const threadElement = document.createElement('div');
