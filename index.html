@@ -426,9 +426,9 @@
                     threadElement.className = 'thread-item';
                     threadElement.dataset.threadId = thread.id;
 
-                    const isRead = thread.unread_count === 0;
-                    const shortValue = meta.shortName || meta.advertTitle || '';
                     const lastDateRaw = meta.lastDate || thread.last_message_date || thread.last_message?.created_at || thread.last_message?.date || thread.updated_at;
+                    const isRead = thread.unread_count === 0 || (meta.lastRead && new Date(meta.lastRead) >= new Date(lastDateRaw));
+                    const shortValue = meta.shortName || meta.advertTitle || '';
                     const lastDate = formatDate(lastDateRaw);
                     if (!isRead) threadElement.classList.add('unread');
                     if (autoReplyEnabled && !isRead && meta.lastAutoReply !== lastDateRaw) {
@@ -563,7 +563,10 @@
                 const badge = threadEl.querySelector('.badge');
                 if (badge) badge.remove();
             }
-            authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark-read`, { method: 'POST' })
+            const meta = getThreadMeta(threadId);
+            meta.lastRead = new Date().toISOString();
+            saveThreadMeta(threadId, meta);
+            authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark-read`, { method: 'POST', keepalive: true })
                 .catch(err => console.warn('Неуспешно маркиране на прочетено', err));
         }
 
