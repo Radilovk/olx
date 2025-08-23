@@ -179,7 +179,9 @@
             elements.refreshButton.addEventListener('click', fetchThreads);
             elements.settingsButton.addEventListener('click', showSettingsView);
             elements.selectAllCheckbox.addEventListener('change', handleSelectAll);
-            elements.threadsList.addEventListener('change', updateBroadcastCounter);
+            elements.threadsList.addEventListener('change', e => {
+                if (e.target.classList.contains('thread-checkbox')) updateBroadcastCounter();
+            });
             
             elements.sendButton.addEventListener('click', sendMessage);
             elements.generateAiButton.addEventListener('click', generateAiReply);
@@ -418,7 +420,7 @@
         }
 
         function updateBroadcastCounter() {
-            const selectedCount = document.querySelectorAll('.thread-checkbox:checked').length;
+            const selectedCount = elements.threadsList.querySelectorAll('.thread-checkbox:checked').length;
             elements.broadcastSection.classList.toggle('hidden', selectedCount === 0);
             elements.broadcastButton.disabled = selectedCount === 0;
             elements.broadcastButton.textContent = `Изпрати на избраните (${selectedCount})`;
