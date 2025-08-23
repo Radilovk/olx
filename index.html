@@ -226,12 +226,14 @@
                     const lastDate = formatDate(thread.last_message_date);
                     if (!isRead) threadElement.classList.add('unread');
 
-                    const interlocutorName = thread.interlocutor?.name ?? 'Неизвестен потребител';
+                    const interlocutorName = meta.contactName || thread.interlocutor?.name || 'Неизвестен потребител';
+                    const advertTitle = meta.advertTitle || '';
 
                     threadElement.innerHTML = `
                         <input type="checkbox" class="thread-checkbox" data-id="${thread.id}">
                         <div class="thread-item-info">
-                            <p><span class="user-name">${interlocutorName}</span><input class="short-ad-name" value="${shortName}" placeholder="Кратко име"></p>
+                            <p><span class="user-name">${interlocutorName}</span><input class="short-ad-name" value="${shortName}" placeholder="${advertTitle || 'Кратко име'}"></p>
+                            <small class="advert-title">${advertTitle}</small>
                             <small>Последно: ${lastDate}</small>
                         </div>
                         <div class="thread-meta">
@@ -246,6 +248,7 @@
                                 <option value="econt"${shipping === 'econt' ? ' selected' : ''}>Еконт</option>
                             </select>
                             <button class="note-button" title="Бележка">📝</button>
+                            <button class="details-button" title="Обнови детайли">🔄</button>
                         </div>
                     `;
 
@@ -296,12 +299,45 @@
                         }
                     });
 
+                    const detailsBtn = threadElement.querySelector('.details-button');
+                    detailsBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        refreshThreadDetails(thread.id, threadElement, meta, shortInput);
+                    });
+
+                    refreshThreadDetails(thread.id, threadElement, meta, shortInput);
+
                     elements.threadsList.appendChild(threadElement);
                 });
             } catch (error) {
                 elements.threadsList.innerHTML = `<p style="color: red; padding: 15px;">${error.message}</p>`;
             } finally {
                 elements.loader.classList.add('hidden');
+            }
+        }
+
+        async function refreshThreadDetails(id, threadElement, meta, shortInput) {
+            const advertEl = threadElement.querySelector('.advert-title');
+            const userEl = threadElement.querySelector('.user-name');
+            const btn = threadElement.querySelector('.details-button');
+            if (btn) btn.disabled = true;
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/threads/${id}/details`);
+                if (!response.ok) throw new Error('fetch failed');
+                const data = await response.json();
+                meta.advertTitle = data.advertTitle || '';
+                meta.contactName = data.contactName || userEl.textContent;
+                saveThreadMeta(id, meta);
+                advertEl.textContent = meta.advertTitle;
+                userEl.textContent = meta.contactName;
+                if (!meta.shortName) {
+                    shortInput.placeholder = meta.advertTitle || 'Кратко име';
+                }
+            } catch (err) {
+                advertEl.textContent = meta.advertTitle || advertEl.textContent;
+                userEl.textContent = meta.contactName || userEl.textContent;
+            } finally {
+                if (btn) btn.disabled = false;
             }
         }
 
