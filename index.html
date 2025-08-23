@@ -54,12 +54,9 @@
 
         /* --- Messages View --- */
         #messages-view { flex-grow: 1; padding: 20px; overflow-y: auto; }
-        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 18px; max-width: 70%; word-wrap: break-word; line-height: 1.4; transition: opacity 0.3s ease; }
+        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 18px; max-width: 70%; word-wrap: break-word; line-height: 1.4; }
         .message.sent { background-color: var(--main-blue); color: white; align-self: flex-end; }
         .message.received { background-color: var(--light-gray); color: black; align-self: flex-start; }
-        .message.pending { opacity: 0.6; }
-        .message.failed { background-color: #ffdddd; color: #d8000c; border: 1px solid #d8000c; }
-        .message.failed::after { content: " (Неуспешно)"; font-size: 0.8em; }
         #messages-container { display: flex; flex-direction: column; }
 
         /* --- Reply Area --- */
@@ -204,49 +201,33 @@
 
         // --- CORE FUNCTIONS ---
 
-        // ПРОМЯНА: Преминаване към Promise-базиран кеш, за да се избегнат race conditions.
-        const advertPromiseCache = new Map();
+        const advertCache = new Map();
 
         async function getAdvert(id) {
             if (!id) return null;
-            
-            // 1. Проверка в in-memory кеша за Promise
-            if (advertPromiseCache.has(id)) {
-                return advertPromiseCache.get(id);
-            }
-
-            // 2. Проверка в localStorage за вече изпълнен резултат
+            if (advertCache.has(id)) return advertCache.get(id);
             const lsKey = `advert_${id}`;
             const cached = localStorage.getItem(lsKey);
             if (cached) {
                 const advert = JSON.parse(cached);
-                advertPromiseCache.set(id, Promise.resolve(advert)); // Попълваме и in-memory кеша
+                advertCache.set(id, advert);
                 return advert;
             }
-
-            // 3. Ако го няма никъде, правим заявка
-            const promise = authorizedFetch(`${API_BASE_URL}/api/adverts/${id}`)
-                .then(async response => {
-                    if (!response.ok) throw new Error('Advert fetch failed');
-                    const advert = await response.json();
-                    localStorage.setItem(lsKey, JSON.stringify(advert));
-                    return advert;
-                })
-                .catch(err => {
-                    advertPromiseCache.delete(id); // При грешка, премахваме Promise-a, за да може да се опита отново
-                    return null;
-                });
-
-            advertPromiseCache.set(id, promise);
-            return promise;
+            try {
+                const response = await authorizedFetch(`${API_BASE_URL}/api/adverts/${id}`);
+                if (!response.ok) throw new Error('Advert fetch failed');
+                const advert = await response.json();
+                advertCache.set(id, advert);
+                localStorage.setItem(lsKey, JSON.stringify(advert));
+                return advert;
+            } catch (err) {
+                return null; // отказ от API
+            }
         }
-
 
         async function fetchThreads() {
             elements.loader.classList.remove('hidden');
             elements.threadsList.innerHTML = '';
-            showView(elements.placeholderView);
-
             try {
                 const response = await authorizedFetch(`${API_BASE_URL}/api/threads`);
                 if (!response.ok) {
@@ -267,12 +248,11 @@
                             if (advert && advert.data) {
                                 meta.advertTitle = advert.data.title || meta.advertTitle;
                                 meta.advertCreatedAt = advert.data.created_at || meta.advertCreatedAt;
-                                meta.contactName = advert.data.contact?.name || meta.contactName;
                             } else {
                                 meta.advertTitle = meta.advertTitle || '(невалидна обява)';
                             }
                         } catch (err) {
-                            meta.advertTitle = meta.advertTitle || '(грешка при зареждане на обява)';
+                            meta.advertTitle = meta.advertTitle || '(невалидна обява)';
                         }
                         saveThreadMeta(thread.id, meta);
                     }
@@ -285,7 +265,7 @@
                     const shortValue = meta.shortName || meta.advertTitle || '';
                     const orderStatus = meta.orderStatus || 'pending';
                     const shipping = meta.shipping || '';
-                    const lastDate = formatDate(thread.last_message_date);
+                    const lastDate = formatDate(thread.last_message_date || thread.last_message?.created_at || thread.last_message?.date);
                     if (!isRead) threadElement.classList.add('unread');
 
                     const interlocutorName = meta.contactName || thread.interlocutor?.name || 'Неизвестен потребител';
@@ -366,11 +346,13 @@
                         e.stopPropagation();
                         refreshThreadDetails(thread.id, threadElement, meta, shortInput);
                     });
-                    
+
+                    refreshThreadDetails(thread.id, threadElement, meta, shortInput);
+
                     elements.threadsList.appendChild(threadElement);
                 }
             } catch (error) {
-                elements.threadsList.innerHTML = `<p style="color: red; padding: 15px;">Грешка при зареждане на разговорите: ${error.message}</p>`;
+                elements.threadsList.innerHTML = `<p style="color: red; padding: 15px;">${error.message}</p>`;
             } finally {
                 elements.loader.classList.add('hidden');
             }
@@ -394,11 +376,6 @@
                     shortInput.placeholder = meta.advertTitle || 'Кратко име';
                 }
             } catch (err) {
-                // ПРОМЯНА: Добавяне на визуална обратна връзка при грешка.
-                if (btn) {
-                    btn.textContent = '⚠️';
-                    setTimeout(() => { btn.textContent = '🔄'; }, 2000);
-                }
                 advertEl.textContent = meta.advertTitle || advertEl.textContent;
                 userEl.textContent = meta.contactName || userEl.textContent;
             } finally {
@@ -445,18 +422,6 @@
             elements.sendButton.disabled = true;
             elements.sendButton.textContent = '...';
 
-            // ПРОМЯНА: Оптимистично добавяне на съобщението в UI за по-добра отзивчивост.
-            const container = document.getElementById('messages-container');
-            const pendingMsgElement = document.createElement('div');
-            pendingMsgElement.className = 'message sent pending';
-            pendingMsgElement.textContent = text;
-            if (container) {
-                container.appendChild(pendingMsgElement);
-                elements.messagesView.scrollTop = elements.messagesView.scrollHeight;
-            }
-            const originalReplyText = elements.replyText.value;
-            elements.replyText.value = '';
-
             try {
                 const response = await authorizedFetch(`${API_BASE_URL}/api/threads/${currentThreadId}/send-message`, {
                     method: 'POST',
@@ -465,21 +430,15 @@
                 });
                 if (!response.ok) throw new Error((await response.json()).error);
                 
-                // ПРОМЯНА: Премахваме setTimeout и презареждаме чата след успешен отговор от сървъра.
-                await displayMessages(currentThreadId); 
-
+                elements.replyText.value = '';
+                setTimeout(() => displayMessages(currentThreadId), 1000);
             } catch (error) {
-                // ПРОМЯНА: При грешка, маркираме съобщението като неуспешно.
-                pendingMsgElement.classList.remove('pending');
-                pendingMsgElement.classList.add('failed');
-                elements.replyText.value = originalReplyText; // Връщаме текста, за да може да се изпрати отново.
                 alert(`Грешка при изпращане: ${error.message}`);
             } finally {
                 elements.sendButton.disabled = false;
                 elements.sendButton.textContent = 'Изпрати';
             }
         }
-
 
         async function generateAiReply() {
             if (!currentThreadId) return;
@@ -637,4 +596,4 @@
 
     </script>
 </body>
-</html>```
+</html>
