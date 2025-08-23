@@ -2,14 +2,15 @@
 <html lang="bg">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OLX Command Center</title>
     <style>
+        /* --- General Layout --- */
         :root { --main-blue: #007bff; --light-blue: #e0eafc; --ai-purple: #563d7c; --gray-bg: #f4f4f5; --light-gray: #e9e9eb; --text-dark: #111; --text-light: #555; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; margin: 0; height: 100vh; background-color: var(--gray-bg); font-size: 14px; overflow: hidden; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; margin: 0; height: 100vh; background-color: var(--gray-bg); font-size: 14px; }
         * { box-sizing: border-box; }
 
-        #sidebar { width: 350px; border-right: 1px solid #ccc; height: 100%; display: flex; flex-direction: column; background-color: #fff; flex-shrink: 0; }
+        /* --- Sidebar --- */
+        #sidebar { width: 350px; border-right: 1px solid #ccc; height: 100%; display: flex; flex-direction: column; background-color: #fff; }
         .sidebar-header { padding: 10px 15px; border-bottom: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
         .sidebar-header h2 { margin: 0; font-size: 1.2em; color: #333; }
         .sidebar-controls { display: flex; align-items: center; font-size: 12px; }
@@ -17,28 +18,33 @@
         .sidebar-controls button { background: none; border: 1px solid #ccc; cursor: pointer; border-radius: 5px; padding: 5px 8px; }
         #threads-list { flex-grow: 1; overflow-y: auto; }
         
+        /* --- Broadcast (Group Message) Section --- */
         #broadcast-section { padding: 10px; border-top: 1px solid #ccc; }
         #broadcast-section textarea { width: 100%; resize: vertical; padding: 8px; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 5px; }
         #broadcast-section button { width: 100%; padding: 10px; background-color: var(--ai-purple); color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
         #broadcast-section button:disabled { background-color: #ccc; }
 
-        .thread-item { padding: 12px 15px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: flex-start; }
+        /* --- Thread Item in Sidebar --- */
+        .thread-item { padding: 10px 15px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: flex-start; }
         .thread-item:hover { background-color: #f0f0f0; }
-        .thread-item.active { background-color: var(--light-blue); }
-        .thread-item input[type="checkbox"] { margin-right: 12px; margin-top: 4px; flex-shrink: 0; }
-        .thread-item-info { flex-grow: 1; min-width: 0; }
-        .thread-item-info p, .thread-item-info small { margin: 0; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .thread-item-info p { font-weight: 500; color: var(--text-dark); }
-        .thread-item.unread .user-name, .thread-item.unread .advert-title { font-weight: bold; color: var(--text-dark); }
+        .thread-item.active { background-color: var(--light-blue); border-right: 3px solid var(--main-blue); }
+        .thread-item input[type="checkbox"] { margin-right: 10px; }
+        .thread-item-info { flex-grow: 1; }
+        .thread-item-info p, .thread-item-info small { margin: 0; color: var(--text-light); }
+        .thread-item-info p { font-weight: 500; color: var(--text-dark); display: flex; justify-content: space-between; align-items: center; }
+        .thread-item-info .short-ad-name { margin-left: 5px; flex-grow: 1; border: 0; border-bottom: 1px dashed #ccc; background: transparent; font-size: 12px; }
+        .thread-item-info .short-ad-name:focus { outline: none; border-bottom-color: var(--main-blue); }
+        .thread-item.unread p { font-weight: bold; }
+        .thread-meta { display: flex; flex-direction: column; gap: 4px; margin-left: 5px; }
+        .thread-meta select, .thread-meta button { font-size: 11px; }
+        .read-toggle, .note-button { background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 2px 4px; }
 
+        /* --- Main Content Area --- */
         #main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; }
-        #content-area { flex-grow: 1; display: flex; flex-direction: column; background-color: #fff; }
+        #content-area { flex-grow: 1; display: flex; flex-direction: column; }
         .placeholder { text-align: center; color: #888; margin: auto; }
         
-        #chat-header { display: none; align-items: center; padding: 10px; border-bottom: 1px solid #ccc; background-color: #f9f9f9; flex-shrink: 0; }
-        #back-to-threads-button { font-size: 20px; background: none; border: none; cursor: pointer; padding: 0 15px 0 5px; }
-        #chat-partner-name { margin: 0; font-size: 1.1em; font-weight: bold; }
-
+        /* --- AI Analyzer Section --- */
         #analyzer-section { padding: 15px; border-bottom: 1px solid #ccc; background-color: #fafafa; }
         #analyzer-section p { margin: 0 0 10px 0; font-weight: bold; }
         .analyzer-input-group { display: flex; }
@@ -46,52 +52,45 @@
         #analyzer-button { margin-left: 10px; background-color: var(--ai-purple); color: white; border:none; border-radius:5px; padding: 0 15px; font-weight: bold; cursor: pointer; }
         #analyzer-result { margin-top: 10px; padding: 10px; background-color: #eef; border-radius: 5px; color: #333; }
 
-        #messages-view { flex-grow: 1; padding: 20px; overflow-y: auto; background-color: var(--gray-bg); }
-        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 18px; max-width: 80%; width: fit-content; word-wrap: break-word; line-height: 1.4; }
-        .message.sent { background-color: var(--main-blue); color: white; margin-left: auto; }
-        .message.received { background-color: var(--light-gray); color: black; margin-right: auto; }
+        /* --- Messages View --- */
+        #messages-view { flex-grow: 1; padding: 20px; overflow-y: auto; }
+        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 18px; max-width: 70%; word-wrap: break-word; line-height: 1.4; }
+        .message.sent { background-color: var(--main-blue); color: white; align-self: flex-end; }
+        .message.received { background-color: var(--light-gray); color: black; align-self: flex-start; }
         #messages-container { display: flex; flex-direction: column; }
 
-        #reply-area { border-top: 1px solid #ccc; padding: 10px; display: flex; background-color: #f9f9f9; align-items: flex-end; flex-shrink: 0; }
-        #reply-area textarea { flex-grow: 1; resize: none; border-radius: 18px; border: 1px solid #ccc; padding: 10px; font-size: 16px; line-height: 1.4; max-height: 100px; }
-        #reply-area button { margin-left: 10px; width: 42px; height: 42px; border-radius: 50%; border: none; font-weight: bold; cursor: pointer; transition: background-color 0.2s; flex-shrink: 0; padding: 0; font-size: 20px; }
+        /* --- Reply Area --- */
+        #reply-area { border-top: 1px solid #ccc; padding: 10px; display: flex; background-color: #f9f9f9; align-items: center; }
+        #reply-area textarea { flex-grow: 1; resize: none; border-radius: 18px; border: 1px solid #ccc; padding: 10px; font-size: 14px; line-height: 1.4; }
+        #reply-area button { margin-left: 10px; padding: 0 20px; height: 38px; border-radius: 18px; border: none; font-weight: bold; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; }
         #reply-area button#send-button { background-color: var(--main-blue); color: white; }
-        #reply-area button#generate-ai-button { background-color: var(--ai-purple); color: white; font-size: 16px; }
+        #reply-area button#generate-ai-button { background-color: var(--ai-purple); color: white; }
         #reply-area button:disabled { background-color: #ccc; cursor: not-allowed; }
 
-        #settings-view { padding: 20px; height: 100%; overflow-y: auto; }
+        /* --- Settings View --- */
+        #settings-view { padding: 20px; }
         #settings-view h2 { margin-top: 0; }
         #settings-view textarea { width: 100%; height: 200px; resize: vertical; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
         #settings-view button { padding: 10px 20px; background-color: var(--main-blue); color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .status-message { margin-top: 10px; font-weight: bold; }
+        #status-message { margin-top: 10px; font-weight: bold; }
         .success { color: green; }
         .error { color: red; }
 
+        /* --- General Helpers --- */
         .hidden { display: none !important; }
         #loader, #messages-loader { text-align: center; padding: 20px; color: #888; }
-        
-        @media (max-width: 768px) {
-            body { font-size: 16px; }
-            #sidebar { width: 100%; border-right: none; }
-            #main-content { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: translateX(100%); transition: transform 0.3s ease-in-out; }
-            #main-content.visible { transform: translateX(0); }
-            
-            #chat-header { display: flex; }
-            #send-button { font-size: 16px; }
-            #send-button::before { content: '➤'; }
-            #send-button span { display: none; }
-        }
     </style>
 </head>
 <body>
 
+    <!-- SIDEBAR: Списък с разговори и инструменти за групови съобщения -->
     <div id="sidebar">
         <div class="sidebar-header">
             <h2>Разговори</h2>
             <div class="sidebar-controls">
                 <label><input type="checkbox" id="select-all-checkbox"> Всички</label>
                 <button id="refresh-button">🔄</button>
-                <button id="settings-button">⚙️</button>
+                <button id="settings-button" style="margin-left: 5px;">⚙️</button>
             </div>
         </div>
         <div id="loader">Зареждам разговори...</div>
@@ -102,41 +101,37 @@
         </div>
     </div>
 
+    <!-- MAIN CONTENT: Място за показване на чат, настройки и др. -->
     <div id="main-content">
         <div id="content-area">
+            <!-- Начален изглед -->
             <div id="placeholder-view" class="placeholder">
                 <h1>OLX Command Center</h1>
-                <p>Изберете разговор, за да започнете.</p>
+                <p>Изберете разговор отляво, за да започнете.</p>
             </div>
 
+            <!-- Изглед за чат -->
             <div id="chat-view" class="hidden" style="display: flex; flex-direction: column; height: 100%;">
-                <div id="chat-header">
-                    <button id="back-to-threads-button">&larr;</button>
-                    <h3 id="chat-partner-name"></h3>
-                </div>
                 <div id="analyzer-section">
-                    <p>AI Анализатор</p>
+                    <p>AI Анализатор на разговора</p>
                     <div class="analyzer-input-group">
-                        <input type="text" id="analyzer-input" placeholder="Напр. 'Какъв е адресът?'">
+                        <input type="text" id="analyzer-input" placeholder="Напр. 'Какъв е адресът за доставка?'">
                         <button id="analyzer-button">Питай AI</button>
                     </div>
                     <div id="analyzer-result" class="hidden"></div>
                 </div>
                 <div id="messages-view"></div>
                 <div id="reply-area">
-                    <textarea id="reply-text" rows="1" placeholder="Отговор..."></textarea>
-                    <button id="generate-ai-button" title="Генерирай с AI">✨</button>
-                    <button id="send-button" title="Изпрати"><span>Изпрати</span></button>
+                    <textarea id="reply-text" rows="3" placeholder="Напишете отговор..."></textarea>
+                    <button id="send-button">Изпрати</button>
+                    <button id="generate-ai-button" class="ai-button">✨ Генерирай</button>
                 </div>
             </div>
 
+            <!-- Изглед за настройки -->
             <div id="settings-view" class="hidden">
-                <div id="chat-header">
-                    <button id="back-to-threads-button-settings">&larr;</button>
-                    <h3>Настройки</h3>
-                </div>
                 <h2>Настройки на AI Асистента</h2>
-                <p>Променете системния промпт, който AI използва, за да генерира отговори.</p>
+                <p>Тук можете да промените системния промпт, който AI използва, за да генерира отговори. Опишете каква роля искате да играе, какъв тон да използва и т.н.</p>
                 <textarea id="prompt-textarea"></textarea>
                 <button id="save-prompt-button">Запази промпта</button>
                 <div id="status-message"></div>
@@ -146,15 +141,15 @@
 
     <script src="auth.js"></script>
     <script>
+        // --- CONFIGURATION ---
         const API_BASE_URL = 'https://olx.radilov-k.workers.dev';
         const AUTH_URL = 'https://www.olx.bg/oauth/authorize?response_type=code&client_id=200383&redirect_uri=https://olx.radilov-k.workers.dev/callback&scope=read+write+v2&state=random_string_12345';
         
+        // --- STATE ---
         let currentThreadId = null;
-        const IS_MOBILE = window.innerWidth <= 768;
 
+        // --- DOM ELEMENTS ---
         const elements = {
-            sidebar: document.getElementById('sidebar'),
-            mainContent: document.getElementById('main-content'),
             loader: document.getElementById('loader'),
             threadsList: document.getElementById('threads-list'),
             selectAllCheckbox: document.getElementById('select-all-checkbox'),
@@ -176,11 +171,9 @@
             promptTextarea: document.getElementById('prompt-textarea'),
             savePromptButton: document.getElementById('save-prompt-button'),
             statusMessage: document.getElementById('status-message'),
-            chatPartnerName: document.getElementById('chat-partner-name'),
-            backToThreadsButton: document.getElementById('back-to-threads-button'),
-            backToThreadsButtonSettings: document.getElementById('back-to-threads-button-settings'),
         };
 
+        // --- EVENT LISTENERS ---
         document.addEventListener('DOMContentLoaded', () => {
             fetchThreads();
             
@@ -192,44 +185,24 @@
             });
             
             elements.sendButton.addEventListener('click', sendMessage);
-            elements.replyText.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
             elements.generateAiButton.addEventListener('click', generateAiReply);
             elements.analyzerButton.addEventListener('click', analyzeThread);
             elements.broadcastButton.addEventListener('click', sendBroadcastMessage);
             elements.savePromptButton.addEventListener('click', savePrompt);
-            elements.backToThreadsButton.addEventListener('click', showThreadsViewOnMobile);
-            elements.backToThreadsButtonSettings.addEventListener('click', showThreadsViewOnMobile);
-
-            elements.replyText.addEventListener('input', () => {
-                const el = elements.replyText;
-                el.style.height = 'auto';
-                el.style.height = (el.scrollHeight) + 'px';
-            });
         });
 
+        // --- VIEW MANAGEMENT ---
         function showView(viewToShow) {
-            [elements.placeholderView, elements.chatView, elements.settingsView].forEach(view => view.classList.add('hidden'));
+            [elements.placeholderView, elements.chatView, elements.settingsView].forEach(view => {
+                view.classList.add('hidden');
+            });
             viewToShow.classList.remove('hidden');
-
-            if (IS_MOBILE) {
-                elements.mainContent.classList.add('visible');
-            }
         }
 
-        function showThreadsViewOnMobile() {
-            if (IS_MOBILE) {
-                elements.mainContent.classList.remove('visible');
-                document.querySelectorAll('.thread-item.active').forEach(el => el.classList.remove('active'));
-                currentThreadId = null;
-            }
-        }
+        // --- CORE FUNCTIONS ---
 
         const advertCache = new Map();
+
         async function getAdvert(id) {
             if (!id) return null;
             if (advertCache.has(id)) return advertCache.get(id);
@@ -242,13 +215,13 @@
             }
             try {
                 const response = await authorizedFetch(`${API_BASE_URL}/api/adverts/${id}`);
-                if (!response.ok) return null;
+                if (!response.ok) throw new Error('Advert fetch failed');
                 const advert = await response.json();
                 advertCache.set(id, advert);
                 localStorage.setItem(lsKey, JSON.stringify(advert));
                 return advert;
             } catch (err) {
-                return null;
+                return null; // отказ от API
             }
         }
 
@@ -268,43 +241,115 @@
                 }
 
                 for (const thread of threads) {
-                    // ✅ ПРОМЯНА: Добавен try-catch, за да не спира целият списък при грешка в един разговор.
-                    try {
-                        let advertTitle = '';
-                        if (thread.advert_id) {
-                           const advert = await getAdvert(thread.advert_id);
+                    const meta = getThreadMeta(thread.id);
+                    if (thread.advert_id) {
+                        try {
+                            const advert = await getAdvert(thread.advert_id);
                             if (advert && advert.data) {
-                                advertTitle = advert.data.title;
+                                meta.advertTitle = advert.data.title || meta.advertTitle;
+                                meta.advertCreatedAt = advert.data.created_at || meta.advertCreatedAt;
+                            } else {
+                                meta.advertTitle = meta.advertTitle || '(невалидна обява)';
                             }
+                        } catch (err) {
+                            meta.advertTitle = meta.advertTitle || '(невалидна обява)';
                         }
-
-                        const threadElement = document.createElement('div');
-                        threadElement.className = 'thread-item';
-                        threadElement.dataset.threadId = thread.id;
-                        if (thread.unread_count > 0) threadElement.classList.add('unread');
-
-                        const lastDate = formatDate(thread.last_message_date);
-                        const interlocutorName = thread.interlocutor?.name || 'Неизвестен потребител';
-
-                        threadElement.innerHTML = `
-                            <input type="checkbox" class="thread-checkbox" data-id="${thread.id}">
-                            <div class="thread-item-info">
-                                <p class="user-name">${interlocutorName}</p>
-                                <small class="advert-title">${advertTitle}</small>
-                                <small>Последно: ${lastDate}</small>
-                            </div>
-                        `;
-
-                        threadElement.addEventListener('click', () => {
-                            document.querySelectorAll('.thread-item.active').forEach(el => el.classList.remove('active'));
-                            threadElement.classList.add('active');
-                            displayMessages(thread.id, interlocutorName);
-                        });
-
-                        elements.threadsList.appendChild(threadElement);
-                    } catch (e) {
-                        console.error(`Грешка при обработка на разговор ID ${thread.id}:`, e);
+                        saveThreadMeta(thread.id, meta);
                     }
+
+                    const threadElement = document.createElement('div');
+                    threadElement.className = 'thread-item';
+                    threadElement.dataset.threadId = thread.id;
+
+                    const isRead = meta.isRead ?? (thread.unread_count === 0);
+                    const shortValue = meta.shortName || meta.advertTitle || '';
+                    const orderStatus = meta.orderStatus || 'pending';
+                    const shipping = meta.shipping || '';
+                    const lastDate = formatDate(thread.last_message_date || thread.last_message?.created_at || thread.last_message?.date);
+                    if (!isRead) threadElement.classList.add('unread');
+
+                    const interlocutorName = meta.contactName || thread.interlocutor?.name || 'Неизвестен потребител';
+                    const advertTitle = meta.advertTitle || '';
+
+                    threadElement.innerHTML = `
+                        <input type="checkbox" class="thread-checkbox" data-id="${thread.id}" name="thread-checkbox-${thread.id}">
+                        <div class="thread-item-info">
+                            <p><span class="user-name">${interlocutorName}</span><input class="short-ad-name" name="short-ad-name-${thread.id}" value="${shortValue}" placeholder="${advertTitle || 'Кратко име'}"></p>
+                            <small class="advert-title">${advertTitle}</small>
+                            <small>Последно: ${lastDate}</small>
+                        </div>
+                        <div class="thread-meta">
+                            <button class="read-toggle" title="Маркирай прочетено">${isRead ? '📖' : '📬'}</button>
+                            <select class="order-status" name="order-status-${thread.id}">
+                                <option value="pending"${orderStatus === 'pending' ? ' selected' : ''}>Необработена</option>
+                                <option value="done"${orderStatus === 'done' ? ' selected' : ''}>Обработена</option>
+                            </select>
+                            <select class="shipping-method" name="shipping-method-${thread.id}">
+                                <option value=""${shipping === '' ? ' selected' : ''}>Доставка</option>
+                                <option value="speedy"${shipping === 'speedy' ? ' selected' : ''}>Спиди</option>
+                                <option value="econt"${shipping === 'econt' ? ' selected' : ''}>Еконт</option>
+                            </select>
+                            <button class="note-button" title="Бележка">📝</button>
+                            <button class="details-button" title="Обнови детайли">🔄</button>
+                        </div>
+                    `;
+
+                    const info = threadElement.querySelector('.thread-item-info');
+                    info.addEventListener('click', () => {
+                        document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
+                        threadElement.classList.add('active');
+                        displayMessages(thread.id);
+                    });
+
+                    const shortInput = threadElement.querySelector('.short-ad-name');
+                    shortInput.addEventListener('change', e => {
+                        e.stopPropagation();
+                        meta.shortName = e.target.value.trim();
+                        saveThreadMeta(thread.id, meta);
+                    });
+
+                    const readBtn = threadElement.querySelector('.read-toggle');
+                    readBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        meta.isRead = !meta.isRead;
+                        threadElement.classList.toggle('unread', !meta.isRead);
+                        readBtn.textContent = meta.isRead ? '📖' : '📬';
+                        saveThreadMeta(thread.id, meta);
+                    });
+
+                    const orderSelect = threadElement.querySelector('.order-status');
+                    orderSelect.addEventListener('change', e => {
+                        e.stopPropagation();
+                        meta.orderStatus = e.target.value;
+                        saveThreadMeta(thread.id, meta);
+                    });
+
+                    const shipSelect = threadElement.querySelector('.shipping-method');
+                    shipSelect.addEventListener('change', e => {
+                        e.stopPropagation();
+                        meta.shipping = e.target.value;
+                        saveThreadMeta(thread.id, meta);
+                    });
+
+                    const noteBtn = threadElement.querySelector('.note-button');
+                    noteBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        const newNote = prompt('Бележка за клиента:', meta.note || '');
+                        if (newNote !== null) {
+                            meta.note = newNote;
+                            saveThreadMeta(thread.id, meta);
+                        }
+                    });
+
+                    const detailsBtn = threadElement.querySelector('.details-button');
+                    detailsBtn.addEventListener('click', e => {
+                        e.stopPropagation();
+                        refreshThreadDetails(thread.id, threadElement, meta, shortInput);
+                    });
+
+                    refreshThreadDetails(thread.id, threadElement, meta, shortInput);
+
+                    elements.threadsList.appendChild(threadElement);
                 }
             } catch (error) {
                 elements.threadsList.innerHTML = `<p style="color: red; padding: 15px;">${error.message}</p>`;
@@ -313,9 +358,33 @@
             }
         }
 
-        async function displayMessages(threadId, interlocutorName = '') {
+        async function refreshThreadDetails(id, threadElement, meta, shortInput) {
+            const advertEl = threadElement.querySelector('.advert-title');
+            const userEl = threadElement.querySelector('.user-name');
+            const btn = threadElement.querySelector('.details-button');
+            if (btn) btn.disabled = true;
+            try {
+                const response = await authorizedFetch(`${API_BASE_URL}/api/threads/${id}/details`);
+                if (!response.ok) throw new Error('fetch failed');
+                const data = await response.json();
+                meta.advertTitle = data.advertTitle || '';
+                meta.contactName = data.contactName || userEl.textContent;
+                saveThreadMeta(id, meta);
+                advertEl.textContent = meta.advertTitle;
+                userEl.textContent = meta.contactName;
+                if (!meta.shortName) {
+                    shortInput.placeholder = meta.advertTitle || 'Кратко име';
+                }
+            } catch (err) {
+                advertEl.textContent = meta.advertTitle || advertEl.textContent;
+                userEl.textContent = meta.contactName || userEl.textContent;
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        async function displayMessages(threadId) {
             currentThreadId = threadId;
-            elements.chatPartnerName.textContent = interlocutorName;
             showView(elements.chatView);
             elements.messagesView.innerHTML = '<div id="messages-loader">Зареждам съобщенията...</div>';
             elements.analyzerResult.classList.add('hidden');
@@ -330,7 +399,7 @@
                 const container = document.getElementById('messages-container');
                 
                 if (!messages || messages.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color: #888;">Няма съобщения в този разговор.</p>';
+                    container.innerHTML = '<p>Няма съобщения в този разговор.</p>';
                 } else {
                     messages.forEach(msg => {
                         const msgElement = document.createElement('div');
@@ -350,26 +419,30 @@
             const text = elements.replyText.value.trim();
             if (!text) return;
 
-            setButtonLoading(elements.sendButton, true, '...');
+            elements.sendButton.disabled = true;
+            elements.sendButton.textContent = '...';
+
             try {
-                await authorizedFetch(`${API_BASE_URL}/api/threads/${currentThreadId}/send-message`, {
+                const response = await authorizedFetch(`${API_BASE_URL}/api/threads/${currentThreadId}/send-message`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text })
                 });
+                if (!response.ok) throw new Error((await response.json()).error);
+                
                 elements.replyText.value = '';
-                elements.replyText.style.height = 'auto'; // Reset height
-                await displayMessages(currentThreadId, elements.chatPartnerName.textContent);
+                setTimeout(() => displayMessages(currentThreadId), 1000);
             } catch (error) {
                 alert(`Грешка при изпращане: ${error.message}`);
             } finally {
-                setButtonLoading(elements.sendButton, false, '<span>Изпрати</span>');
+                elements.sendButton.disabled = false;
+                elements.sendButton.textContent = 'Изпрати';
             }
         }
 
         async function generateAiReply() {
             if (!currentThreadId) return;
-            setButtonLoading(elements.generateAiButton, true, '...');
+            setButtonLoading(elements.generateAiButton, true, 'Мисли...');
             elements.replyText.value = 'AI генерира отговор, моля изчакайте...';
 
             try {
@@ -382,16 +455,15 @@
                 
                 const data = await response.json();
                 elements.replyText.value = data.reply;
-                elements.replyText.dispatchEvent(new Event('input')); // Trigger auto-resize
             } catch (error) {
                 elements.replyText.value = `Грешка при генериране: ${error.message}`;
             } finally {
-                setButtonLoading(elements.generateAiButton, false, '✨');
+                setButtonLoading(elements.generateAiButton, false, '✨ Генерирай');
             }
         }
 
         async function analyzeThread() {
-             if (!currentThreadId) return;
+            if (!currentThreadId) return;
             const question = elements.analyzerInput.value.trim();
             if (!question) return alert('Моля, въведете въпрос.');
 
@@ -416,13 +488,15 @@
             }
         }
 
+        // --- BROADCAST FUNCTIONS ---
         function handleSelectAll() {
-            document.querySelectorAll('.thread-checkbox').forEach(cb => cb.checked = elements.selectAllCheckbox.checked);
+            const isChecked = elements.selectAllCheckbox.checked;
+            document.querySelectorAll('.thread-checkbox').forEach(cb => cb.checked = isChecked);
             updateBroadcastCounter();
         }
 
         function updateBroadcastCounter() {
-            const selectedCount = document.querySelectorAll('.thread-checkbox:checked').length;
+            const selectedCount = elements.threadsList.querySelectorAll('.thread-checkbox:checked').length;
             elements.broadcastSection.classList.toggle('hidden', selectedCount === 0);
             elements.broadcastButton.disabled = selectedCount === 0;
             elements.broadcastButton.textContent = `Изпрати на избраните (${selectedCount})`;
@@ -430,9 +504,12 @@
 
         async function sendBroadcastMessage() {
             const message = elements.broadcastMessage.value.trim();
-            if (!message) return;
+            if (!message) return alert('Моля, въведете съобщение за групово изпращане.');
+            
             const selectedIds = Array.from(document.querySelectorAll('.thread-checkbox:checked')).map(cb => cb.dataset.id);
-            if (selectedIds.length === 0 || !confirm(`Сигурни ли сте, че искате да изпратите съобщение до ${selectedIds.length} потребители?`)) return;
+            if (selectedIds.length === 0) return;
+
+            if (!confirm(`Сигурни ли сте, че искате да изпратите съобщение до ${selectedIds.length} потребители?`)) return;
 
             setButtonLoading(elements.broadcastButton, true, 'Изпращам...');
             try {
@@ -442,6 +519,7 @@
                     body: JSON.stringify({ threadIds: selectedIds, text: message })
                 });
                 if (!response.ok) throw new Error((await response.json()).error);
+
                 const data = await response.json();
                 alert(`Съобщението е изпратено успешно до ${data.sentCount} от ${selectedIds.length} потребители.`);
                 elements.broadcastMessage.value = '';
@@ -452,10 +530,11 @@
             }
         }
 
+        // --- SETTINGS FUNCTIONS ---
         async function showSettingsView() {
             showView(elements.settingsView);
             elements.statusMessage.textContent = '';
-            elements.promptTextarea.value = 'Зареждам...';
+            elements.promptTextarea.value = 'Зареждам текущия промпт...';
             try {
                 const response = await authorizedFetch(`${API_BASE_URL}/api/prompt`);
                 if (!response.ok) throw new Error((await response.json()).error);
@@ -471,11 +550,12 @@
             setButtonLoading(elements.savePromptButton, true, 'Запазвам...');
             showStatusMessage('Запазвам...');
             try {
-                await authorizedFetch(`${API_BASE_URL}/api/prompt`, {
+                const response = await authorizedFetch(`${API_BASE_URL}/api/prompt`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: newPrompt })
                 });
+                if (!response.ok) throw new Error((await response.json()).error);
                 showStatusMessage('Промптът е запазен успешно!', 'success');
             } catch (error) {
                 showStatusMessage(`Грешка: ${error.message}`, 'error');
@@ -484,19 +564,28 @@
             }
         }
 
+        // --- HELPER FUNCTIONS ---
+        function getThreadMeta(id) {
+            return JSON.parse(localStorage.getItem(`thread_meta_${id}`) || '{}');
+        }
+
+        function saveThreadMeta(id, data) {
+            localStorage.setItem(`thread_meta_${id}`, JSON.stringify(data));
+        }
+
         function formatDate(dateStr) {
             if (!dateStr) return '---';
             const d = new Date(dateStr);
-            return isNaN(d) ? '---' : d.toLocaleString('bg-BG', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+            return isNaN(d) ? '---' : d.toLocaleString('bg-BG');
         }
 
         function setButtonLoading(button, isLoading, loadingText) {
             button.disabled = isLoading;
             if (isLoading) {
-                button.dataset.originalText = button.innerHTML;
-                button.innerHTML = loadingText;
+                button.dataset.originalText = button.textContent;
+                button.textContent = loadingText;
             } else {
-                button.innerHTML = button.dataset.originalText || 'Submit';
+                button.textContent = button.dataset.originalText || 'Submit';
             }
         }
 
@@ -504,6 +593,7 @@
             elements.statusMessage.textContent = message;
             elements.statusMessage.className = `status-message ${type}`;
         }
+
     </script>
 </body>
 </html>
