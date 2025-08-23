@@ -103,6 +103,41 @@
             #sidebar { border-right: none; border-bottom: none; }
             #back-button { display: block; }
         }
+
+        /* --- Dark Theme --- */
+        body.dark {
+            --gray-bg: #121212;
+            --text-dark: #eee;
+            --text-light: #bbb;
+            --light-gray: #2c2c2c;
+            background-color: var(--gray-bg);
+            color: var(--text-dark);
+        }
+
+        body.dark #sidebar { background-color: #1e1e1e; border-right: 1px solid #333; }
+        body.dark .sidebar-header { border-bottom: 1px solid #333; }
+        body.dark .sidebar-header h2 { color: var(--text-dark); }
+        body.dark .sidebar-controls button { border-color: #333; color: var(--text-dark); }
+        body.dark #broadcast-section { border-top: 1px solid #333; background-color: #1e1e1e; }
+        body.dark #broadcast-section textarea { border-color: #333; background-color: #2c2c2c; color: var(--text-dark); }
+        body.dark #broadcast-section button { background-color: var(--ai-purple); }
+        body.dark .thread-item { border-bottom: 1px solid #333; }
+        body.dark .thread-item:hover { background-color: #2c2c2c; }
+        body.dark .thread-item.active { background-color: #2d333b; }
+        body.dark .thread-item-info p, body.dark .thread-item-info small { color: var(--text-light); }
+        body.dark .thread-item-info p { color: var(--text-dark); }
+        body.dark .tag-buttons .tag-btn { background-color: #2c2c2c; border-color: #333; color: var(--text-light); }
+        body.dark #analyzer-section { border-bottom: 1px solid #333; background-color: #1e1e1e; }
+        body.dark #analyzer-input { border: 1px solid #333; background-color: #2c2c2c; color: var(--text-dark); }
+        body.dark #analyzer-result { background-color: #2d333b; color: var(--text-dark); }
+        body.dark #messages-view { background-color: var(--gray-bg); }
+        body.dark .message.received { background-color: #2c2c2c; color: var(--text-dark); }
+        body.dark #reply-area { border-top: 1px solid #333; background-color: #1e1e1e; }
+        body.dark #reply-area textarea { border: 1px solid #333; background-color: #2c2c2c; color: var(--text-dark); }
+        body.dark #settings-view { color: var(--text-dark); }
+        body.dark #settings-view textarea { border: 1px solid #333; background-color: #2c2c2c; color: var(--text-dark); }
+        body.dark #status-message { color: var(--text-dark); }
+        body.dark #modal { background: #2c2c2c; color: var(--text-dark); }
     </style>
 </head>
 <body>
@@ -163,6 +198,13 @@
                 <label style="display:block;margin-top:10px;">
                     <input type="checkbox" id="auto-reply-checkbox"> Автоматичен AI отговор при ново съобщение
                 </label>
+                <label style="display:block;margin-top:10px;">
+                    Тема:
+                    <select id="theme-select">
+                        <option value="light">Светла</option>
+                        <option value="dark">Тъмна</option>
+                    </select>
+                </label>
                 <button id="save-prompt-button">Запази промпта</button>
                 <div id="status-message"></div>
             </div>
@@ -188,6 +230,8 @@
         // --- STATE ---
         let currentThreadId = null;
         let autoReplyEnabled = JSON.parse(localStorage.getItem('autoReply') || 'false');
+        let theme = localStorage.getItem('theme') || 'light';
+        if (theme === 'dark') document.body.classList.add('dark');
 
         // --- DOM ELEMENTS ---
         const elements = {
@@ -215,6 +259,7 @@
             savePromptButton: document.getElementById('save-prompt-button'),
             statusMessage: document.getElementById('status-message'),
             autoReplyCheckbox: document.getElementById('auto-reply-checkbox'),
+            themeSelect: document.getElementById('theme-select'),
             mainContent: document.getElementById('main-content'),
             backButton: document.getElementById('back-button'),
         };
@@ -241,6 +286,13 @@
             elements.savePromptButton.addEventListener('click', savePrompt);
             elements.closeSettingsButton.addEventListener('click', closeSettingsView);
             elements.backButton.addEventListener('click', showSidebarOnMobile);
+
+            elements.themeSelect.value = theme;
+            elements.themeSelect.addEventListener('change', e => {
+                theme = e.target.value;
+                document.body.classList.toggle('dark', theme === 'dark');
+                localStorage.setItem('theme', theme);
+            });
         });
 
         // --- VIEW MANAGEMENT ---
@@ -741,6 +793,7 @@
             elements.statusMessage.textContent = '';
             elements.promptTextarea.value = 'Зареждам текущия промпт...';
             elements.autoReplyCheckbox.checked = autoReplyEnabled;
+            elements.themeSelect.value = theme;
             try {
                 const response = await authorizedFetch(`${API_BASE_URL}/api/prompt`);
                 if (!response.ok) throw new Error((await response.json()).error);
