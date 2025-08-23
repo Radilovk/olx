@@ -185,7 +185,7 @@ export default {
   async handleOAuthCallback(request, env) {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
-    if (!code) return new Response("Authorization code not found.", { status: 400 });
+    if (!code) return withCors(new Response("Authorization code not found.", { status: 400 }));
 
     const redirectUri = "https://olx.radilov-k.workers.dev/callback";
     const tokenResponse = await fetch("https://www.olx.bg/api/open/oauth/token", {
@@ -203,7 +203,7 @@ export default {
     if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
         console.error("Failed to fetch token:", errorText);
-        return new Response(`Failed to fetch token from OLX. Status: ${tokenResponse.status}. Body: ${errorText}`, { status: 500 });
+        return withCors(new Response(`Failed to fetch token from OLX. Status: ${tokenResponse.status}. Body: ${errorText}`, { status: 500 }));
     }
 
     const tokenData = await tokenResponse.json();
@@ -214,7 +214,7 @@ export default {
 
     // Препращаме потребителя обратно към главния интерфейс
     const frontendUrl = "https://radilovk.github.io/olx/";
-    return Response.redirect(frontendUrl, 302);
+    return withCors(Response.redirect(frontendUrl, 302));
   },
 };
 
@@ -273,20 +273,26 @@ async function callGemini(apiKey, prompt) {
     return geminiData.candidates?.[0]?.content?.parts?.[0]?.text.trim() || "Не можах да генерирам отговор.";
 }
 
+const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',
+};
+
 function handleCors() {
-    return new Response(null, {
-        headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        }
-    });
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
+function withCors(response) {
+    const headers = new Headers(response.headers);
+    Object.entries(CORS_HEADERS).forEach(([k, v]) => headers.set(k, v));
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 function jsonResponse(data, status = 200) {
-  const headers = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-  };
-  return new Response(JSON.stringify(data, null, 2), { status, headers });
+  return withCors(new Response(JSON.stringify(data, null, 2), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  }));
 }
