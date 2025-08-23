@@ -41,6 +41,9 @@ export default {
       const sendMatch = path.match(/^\/api\/threads\/(\d+)\/send-message$/);
       if (sendMatch && method === 'POST') return this.sendMessage(request, env, sendMatch[1]);
 
+      const advertMatch = path.match(/^\/api\/adverts\/(\d+)$/);
+      if (advertMatch && method === 'GET') return this.getAdvert(request, env, advertMatch[1]);
+
       if (path === "/api/generate-reply" && method === 'POST') return this.generateReply(request, env);
       if (path === "/api/analyze-thread" && method === 'POST') return this.analyzeThread(request, env);
       if (path === "/api/broadcast" && method === 'POST') return this.broadcastMessage(request, env);
@@ -79,6 +82,16 @@ export default {
     if (!messagesResponse.ok) throw new Error(`OLX API Error [getMessages]: ${messagesResponse.status}`);
     const messagesData = await messagesResponse.json();
     return jsonResponse(messagesData.data);
+  },
+
+  async getAdvert(request, env, advertId) {
+    const accessToken = await getValidAccessToken(env);
+    if (!accessToken) return jsonResponse({ error: "Authentication required." }, 401);
+
+    const advertResponse = await fetch(`https://www.olx.bg/api/partner/adverts/${advertId}`, { headers: { "Authorization": `Bearer ${accessToken}`, "Version": "2.0" } });
+    if (!advertResponse.ok) throw new Error(`OLX API Error [getAdvert]: ${advertResponse.status}`);
+    const advertData = await advertResponse.json();
+    return jsonResponse(advertData);
   },
   
   async generateReply(request, env) {

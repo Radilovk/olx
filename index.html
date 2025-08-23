@@ -214,10 +214,10 @@
                 return advert;
             }
             try {
-                let response = await authorizedFetch(`https://www.olx.bg/api/partner/adverts/${id}`);
+                let response = await authorizedFetch(`${API_BASE_URL}/api/adverts/${id}`);
                 if (response.status === 401) {
                     await refreshToken();
-                    response = await authorizedFetch(`https://www.olx.bg/api/partner/adverts/${id}`);
+                    response = await authorizedFetch(`${API_BASE_URL}/api/adverts/${id}`);
                 }
                 if (!response.ok) throw new Error('Advert fetch failed');
                 const advert = await response.json();
