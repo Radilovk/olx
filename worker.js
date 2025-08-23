@@ -37,7 +37,10 @@ export default {
       
       const messageMatch = path.match(/^\/api\/threads\/(\d+)\/messages$/);
       if (messageMatch && method === 'GET') return this.getMessages(request, env, messageMatch[1]);
-      
+
+      const detailsMatch = path.match(/^\/api\/threads\/(\d+)\/details$/);
+      if (detailsMatch && method === 'GET') return this.getThreadDetails(request, env, detailsMatch[1]);
+
       const sendMatch = path.match(/^\/api\/threads\/(\d+)\/send-message$/);
       if (sendMatch && method === 'POST') return this.sendMessage(request, env, sendMatch[1]);
 
@@ -92,6 +95,36 @@ export default {
     if (!advertResponse.ok) throw new Error(`OLX API Error [getAdvert]: ${advertResponse.status}`);
     const advertData = await advertResponse.json();
     return jsonResponse(advertData);
+  },
+
+  async getThreadDetails(request, env, threadId) {
+    const accessToken = await getValidAccessToken(env);
+    if (!accessToken) return jsonResponse({ error: "Authentication required." }, 401);
+
+    const threadRes = await fetch(`https://www.olx.bg/api/partner/threads/${threadId}`, {
+      headers: { "Authorization": `Bearer ${accessToken}`, "Version": "2.0" }
+    });
+    if (!threadRes.ok) throw new Error(`OLX API Error [getThreadDetails]: ${threadRes.status}`);
+    const threadData = (await threadRes.json()).data;
+
+    let advertTitle = "";
+    const contactName = threadData?.interlocutor?.name || "";
+
+    if (threadData?.advert_id) {
+      try {
+        const advertRes = await fetch(`https://www.olx.bg/api/partner/adverts/${threadData.advert_id}`, {
+          headers: { "Authorization": `Bearer ${accessToken}`, "Version": "2.0" }
+        });
+        if (advertRes.ok) {
+          const advertData = (await advertRes.json()).data;
+          advertTitle = advertData?.title || "";
+        }
+      } catch (e) {
+        // Игнорираме грешките от обявата и връщаме празно заглавие
+      }
+    }
+
+    return jsonResponse({ advertTitle, contactName });
   },
   
   async generateReply(request, env) {
