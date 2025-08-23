@@ -39,6 +39,7 @@
         .thread-meta { display: flex; flex-direction: column; gap: 4px; margin-left: 5px; }
         .thread-meta select, .thread-meta button { font-size: 11px; }
         .read-toggle, .note-button { background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 2px 4px; }
+        #back-button { display: none; margin: 5px; padding: 5px 10px; border: 1px solid #ccc; background: none; border-radius: 5px; cursor: pointer; }
 
         /* --- Main Content Area --- */
         #main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; }
@@ -84,8 +85,9 @@
         /* --- Responsive Layout --- */
         @media (max-width: 600px) {
             body { flex-direction: column; height: 100vh; font-size: 16px; }
-            #sidebar { width: 100%; height: 45%; border-right: none; border-bottom: 1px solid #ccc; }
-            #main-content { width: 100%; height: 55%; }
+            #sidebar, #main-content { width: 100%; height: 100%; }
+            #sidebar { border-right: none; border-bottom: none; }
+            #back-button { display: block; }
         }
     </style>
 </head>
@@ -120,6 +122,7 @@
 
             <!-- Изглед за чат -->
             <div id="chat-view" class="hidden" style="display: flex; flex-direction: column; height: 100%;">
+                <button id="back-button" class="hidden">⬅️ Назад</button>
                 <div id="analyzer-section">
                     <p>AI Анализатор на разговора</p>
                     <div class="analyzer-input-group">
@@ -158,6 +161,7 @@
 
         // --- DOM ELEMENTS ---
         const elements = {
+            sidebar: document.getElementById('sidebar'),
             loader: document.getElementById('loader'),
             threadsList: document.getElementById('threads-list'),
             selectAllCheckbox: document.getElementById('select-all-checkbox'),
@@ -179,24 +183,31 @@
             promptTextarea: document.getElementById('prompt-textarea'),
             savePromptButton: document.getElementById('save-prompt-button'),
             statusMessage: document.getElementById('status-message'),
+            mainContent: document.getElementById('main-content'),
+            backButton: document.getElementById('back-button'),
         };
 
         // --- EVENT LISTENERS ---
         document.addEventListener('DOMContentLoaded', () => {
             fetchThreads();
-            
+
+            if (isMobile()) {
+                elements.mainContent.classList.add('hidden');
+            }
+
             elements.refreshButton.addEventListener('click', fetchThreads);
             elements.settingsButton.addEventListener('click', showSettingsView);
             elements.selectAllCheckbox.addEventListener('change', handleSelectAll);
             elements.threadsList.addEventListener('change', e => {
                 if (e.target.classList.contains('thread-checkbox')) updateBroadcastCounter();
             });
-            
+
             elements.sendButton.addEventListener('click', sendMessage);
             elements.generateAiButton.addEventListener('click', generateAiReply);
             elements.analyzerButton.addEventListener('click', analyzeThread);
             elements.broadcastButton.addEventListener('click', sendBroadcastMessage);
             elements.savePromptButton.addEventListener('click', savePrompt);
+            elements.backButton.addEventListener('click', showSidebarOnMobile);
         });
 
         // --- VIEW MANAGEMENT ---
@@ -205,6 +216,27 @@
                 view.classList.add('hidden');
             });
             viewToShow.classList.remove('hidden');
+        }
+
+        function isMobile() {
+            return window.innerWidth <= 600;
+        }
+
+        function showThreadOnMobile() {
+            if (isMobile()) {
+                elements.sidebar.classList.add('hidden');
+                elements.mainContent.classList.remove('hidden');
+                elements.backButton.classList.remove('hidden');
+            }
+        }
+
+        function showSidebarOnMobile() {
+            if (isMobile()) {
+                elements.sidebar.classList.remove('hidden');
+                elements.mainContent.classList.add('hidden');
+                elements.backButton.classList.add('hidden');
+                showView(elements.placeholderView);
+            }
         }
 
         // --- CORE FUNCTIONS ---
@@ -277,13 +309,13 @@
                     const lastDate = formatDate(lastDateRaw);
                     if (!isRead) threadElement.classList.add('unread');
 
-                    const interlocutorName = meta.contactName || 'Неизвестен потребител';
+                    const conversationId = thread.id;
                     const advertTitle = meta.advertTitle || '';
 
                     threadElement.innerHTML = `
                         <input type="checkbox" class="thread-checkbox" data-id="${thread.id}" name="thread-checkbox-${thread.id}">
                         <div class="thread-item-info">
-                            <p><span class="user-name">${interlocutorName}</span><input class="short-ad-name" name="short-ad-name-${thread.id}" value="${shortValue}" placeholder="${advertTitle || 'Кратко име'}"></p>
+                            <p><span class="conversation-id">${conversationId}</span><input class="short-ad-name" name="short-ad-name-${thread.id}" value="${shortValue}" placeholder="${advertTitle || 'Кратко име'}"></p>
                             <small class="advert-title">${advertTitle}</small>
                             <small class="last-date">Последно: ${lastDate}</small>
                         </div>
@@ -308,6 +340,7 @@
                         document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
                         threadElement.classList.add('active');
                         displayMessages(thread.id);
+                        showThreadOnMobile();
                     });
 
                     const shortInput = threadElement.querySelector('.short-ad-name');
@@ -369,7 +402,6 @@
 
         async function refreshThreadDetails(id, threadElement, meta, shortInput) {
             const advertEl = threadElement.querySelector('.advert-title');
-            const userEl = threadElement.querySelector('.user-name');
             const btn = threadElement.querySelector('.details-button');
             if (btn) btn.disabled = true;
             try {
@@ -377,11 +409,9 @@
                 if (!response.ok) throw new Error('fetch failed');
                 const data = await response.json();
                 meta.advertTitle = data.advertTitle || '';
-                meta.contactName = data.contactName || userEl.textContent;
                 meta.lastDate = data.lastMessageDate || meta.lastDate;
                 saveThreadMeta(id, meta);
                 advertEl.textContent = meta.advertTitle;
-                userEl.textContent = meta.contactName;
                 const dateEl = threadElement.querySelector('.last-date');
                 if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
                 if (!meta.shortName) {
@@ -389,7 +419,6 @@
                 }
             } catch (err) {
                 advertEl.textContent = meta.advertTitle || advertEl.textContent;
-                userEl.textContent = meta.contactName || userEl.textContent;
             } finally {
                 if (btn) btn.disabled = false;
             }
@@ -435,9 +464,6 @@
                     if (threadEl) {
                         const dateEl = threadEl.querySelector('.last-date');
                         if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
-        
-                        const userEl = threadEl.querySelector('.user-name');
-                        if (userEl) userEl.textContent = meta.contactName;
                     }
                 }
             } catch (error) {
