@@ -108,7 +108,8 @@ export default {
     const threadData = (await threadRes.json()).data;
 
     let advertTitle = "";
-    const contactName = threadData?.interlocutor?.name || "";
+    let contactName = "";
+    let lastMessageDate = "";
 
     if (threadData?.advert_id) {
       try {
@@ -124,7 +125,30 @@ export default {
       }
     }
 
-    return jsonResponse({ advertTitle, contactName });
+    try {
+      const messagesRes = await fetch(`https://www.olx.bg/api/partner/threads/${threadId}/messages`, {
+        headers: { "Authorization": `Bearer ${accessToken}`, "Version": "2.0" }
+      });
+      if (messagesRes.ok) {
+        const messagesData = await messagesRes.json();
+        const msgs = messagesData.data || [];
+        const clientMsg = msgs.find(m => m.type === 'received');
+        if (clientMsg) {
+          contactName = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name || contactName;
+        }
+        const lastMsg = msgs[msgs.length - 1];
+        if (lastMsg) {
+          lastMessageDate = lastMsg.created_at || lastMsg.date || lastMessageDate;
+        }
+      }
+    } catch (e) {
+      // игнорираме грешките от съобщенията
+    }
+
+    if (!contactName) {
+      contactName = threadData?.interlocutor?.name || "";
+    }
+    return jsonResponse({ advertTitle, contactName, lastMessageDate });
   },
   
   async generateReply(request, env) {
