@@ -248,7 +248,6 @@
                             if (advert && advert.data) {
                                 meta.advertTitle = advert.data.title || meta.advertTitle;
                                 meta.advertCreatedAt = advert.data.created_at || meta.advertCreatedAt;
-                                meta.contactName = advert.data.contact?.name || meta.contactName;
                             } else {
                                 meta.advertTitle = meta.advertTitle || '(невалидна обява)';
                             }
@@ -266,7 +265,7 @@
                     const shortValue = meta.shortName || meta.advertTitle || '';
                     const orderStatus = meta.orderStatus || 'pending';
                     const shipping = meta.shipping || '';
-                    const lastDate = formatDate(thread.last_message_date);
+                    const lastDate = formatDate(thread.last_message_date || thread.last_message?.created_at || thread.last_message?.date);
                     if (!isRead) threadElement.classList.add('unread');
 
                     const interlocutorName = meta.contactName || thread.interlocutor?.name || 'Неизвестен потребител';
