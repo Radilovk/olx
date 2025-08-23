@@ -33,13 +33,12 @@
         .thread-item-info { flex-grow: 1; }
         .thread-item-info p, .thread-item-info small { margin: 0; color: var(--text-light); }
         .thread-item-info p { font-weight: 500; color: var(--text-dark); display: flex; justify-content: space-between; align-items: center; }
-        .thread-item-info .short-ad-name { margin-left: 5px; flex-grow: 1; border: 0; border-bottom: 1px dashed #ccc; background: transparent; font-size: 12px; }
-        .thread-item-info .short-ad-name:focus { outline: none; border-bottom-color: var(--main-blue); }
         .thread-item.unread p { font-weight: bold; }
         .conversation-id-wrapper { display: flex; align-items: center; }
         .badge { background-color: var(--main-blue); color: #fff; border-radius: 50%; min-width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; margin-left: 4px; }
         .note-button { background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 2px 4px; }
-        .tag-buttons { display: flex; gap: 4px; margin-top: 4px; }
+        .tag-buttons { display: flex; gap: 4px; }
+        .thread-item .tag-buttons { margin-left: 5px; }
         .tag-buttons .tag-btn { width: 20px; height: 20px; border: 1px solid #ccc; border-radius: 3px; background-color: #f8f9fa; cursor: pointer; font-size: 12px; line-height: 18px; text-align: center; padding: 0; }
         .tag-buttons .tag-btn.red { background-color: #f8d7da; }
         .tag-buttons .tag-btn.red.active { background-color: #dc3545; color: #fff; }
@@ -428,7 +427,6 @@
 
                     const lastDateRaw = meta.lastDate || thread.last_message_date || thread.last_message?.created_at || thread.last_message?.date || thread.updated_at;
                     const isRead = thread.unread_count === 0 || (meta.lastRead && new Date(meta.lastRead) >= new Date(lastDateRaw));
-                    const shortValue = meta.shortName || meta.advertTitle || '';
                     const lastDate = formatDate(lastDateRaw);
                     if (!isRead) threadElement.classList.add('unread');
                     if (autoReplyEnabled && !isRead && meta.lastAutoReply !== lastDateRaw) {
@@ -440,15 +438,15 @@
                     const conversationId = thread.id;
                     const advertTitle = meta.advertTitle || '';
                     const displayName = meta.contactName || thread.contact_name || conversationId;
+                    const shortTitle = getFirstWords(advertTitle, 2);
 
                     threadElement.innerHTML = `
                         <input type="checkbox" class="thread-checkbox" data-id="${thread.id}" name="thread-checkbox-${thread.id}">
                         <div class="thread-item-info">
-                            <p><span class="conversation-id-wrapper"><span class="conversation-id">${displayName}</span>${thread.unread_count > 0 ? `<span class="badge">${thread.unread_count}</span>` : ''}</span><input class="short-ad-name" name="short-ad-name-${thread.id}" value="${shortValue}" placeholder="${advertTitle || 'Кратко име'}"></p>
-                            <small class="advert-title">${advertTitle}</small>
+                            <p><span class="conversation-id-wrapper"><span class="conversation-id">${displayName}</span>${thread.unread_count > 0 ? `<span class="badge">${thread.unread_count}</span>` : ''}</span><span class="tag-buttons">${createTagButtons(meta)}</span></p>
+                            <small class="advert-title">${shortTitle}</small>
                             <small class="last-date">Последно: ${lastDate}</small>
                         </div>
-                        <div class="tag-buttons">${createTagButtons(meta)}</div>
                     `;
 
                     const info = threadElement.querySelector('.thread-item-info');
@@ -461,14 +459,7 @@
                         showThreadOnMobile();
                     });
 
-                    const shortInput = threadElement.querySelector('.short-ad-name');
-                    shortInput.addEventListener('change', e => {
-                        e.stopPropagation();
-                        meta.shortName = e.target.value.trim();
-                        saveThreadMeta(thread.id, meta);
-                    });
-
-                    refreshThreadDetails(thread.id, threadElement, meta, shortInput);
+                    refreshThreadDetails(thread.id, threadElement, meta);
 
                     elements.threadsList.appendChild(threadElement);
                 }
@@ -479,7 +470,7 @@
             }
         }
 
-        async function refreshThreadDetails(id, threadElement, meta, shortInput) {
+        async function refreshThreadDetails(id, threadElement, meta) {
             const advertEl = threadElement.querySelector('.advert-title');
             try {
                 const response = await authorizedFetch(`${API_BASE_URL}/api/threads/${id}/details`);
@@ -488,14 +479,11 @@
                 meta.advertTitle = data.advertTitle || '';
                 meta.lastDate = data.lastMessageDate || meta.lastDate;
                 saveThreadMeta(id, meta);
-                advertEl.textContent = meta.advertTitle;
+                advertEl.textContent = getFirstWords(meta.advertTitle, 2);
                 const dateEl = threadElement.querySelector('.last-date');
                 if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
-                if (!meta.shortName) {
-                    shortInput.placeholder = meta.advertTitle || 'Кратко име';
-                }
             } catch (err) {
-                advertEl.textContent = meta.advertTitle || advertEl.textContent;
+                advertEl.textContent = getFirstWords(meta.advertTitle, 2) || advertEl.textContent;
             }
         }
 
@@ -900,10 +888,17 @@
             localStorage.setItem(`thread_meta_${id}`, JSON.stringify(data));
         }
 
+        function getFirstWords(text, count) {
+            return (text || '').split(/\s+/).slice(0, count).join(' ');
+        }
+
         function formatDate(dateStr) {
             if (!dateStr) return '---';
             const d = new Date(dateStr);
-            return isNaN(d) ? '---' : d.toLocaleString('bg-BG');
+            if (isNaN(d)) return '---';
+            const datePart = d.toLocaleDateString('bg-BG', { day: '2-digit', month: '2-digit' });
+            const timePart = d.toLocaleTimeString('bg-BG', { hour: '2-digit', minute: '2-digit' });
+            return `${datePart} ${timePart}`;
         }
 
         function setButtonLoading(button, isLoading, loadingText) {
