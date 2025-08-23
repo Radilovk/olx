@@ -277,7 +277,7 @@
                     const lastDate = formatDate(lastDateRaw);
                     if (!isRead) threadElement.classList.add('unread');
 
-                    const interlocutorName = meta.contactName || thread.interlocutor?.name || 'Неизвестен потребител';
+                    const interlocutorName = meta.contactName || 'Неизвестен потребител';
                     const advertTitle = meta.advertTitle || '';
 
                     threadElement.innerHTML = `
@@ -424,7 +424,9 @@
                     const meta = getThreadMeta(threadId);
                     const lastMsg = messages[messages.length - 1];
                     meta.lastDate = lastMsg?.created_at || lastMsg?.date || meta.lastDate;
-                    const clientMsg = messages.find(m => m.type === 'received');
+                    const clientMsg = messages.find(m => m.type === 'received') ||
+                        messages.find(m => m.type !== 'sent') ||
+                        messages[0];
                     if (clientMsg) {
                         meta.contactName = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name || meta.contactName;
                     }

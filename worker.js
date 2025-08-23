@@ -132,7 +132,9 @@ export default {
       if (messagesRes.ok) {
         const messagesData = await messagesRes.json();
         const msgs = messagesData.data || [];
-        const clientMsg = msgs.find(m => m.type === 'received');
+        const clientMsg = msgs.find(m => m.type === 'received') ||
+          msgs.find(m => m.type !== 'sent') ||
+          msgs[0];
         if (clientMsg) {
           contactName = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name || contactName;
         }
