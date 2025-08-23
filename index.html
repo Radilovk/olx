@@ -36,9 +36,7 @@
         .thread-item-info .short-ad-name { margin-left: 5px; flex-grow: 1; border: 0; border-bottom: 1px dashed #ccc; background: transparent; font-size: 12px; }
         .thread-item-info .short-ad-name:focus { outline: none; border-bottom-color: var(--main-blue); }
         .thread-item.unread p { font-weight: bold; }
-        .thread-meta { display: flex; flex-direction: column; gap: 4px; margin-left: 5px; }
-        .thread-meta select, .thread-meta button { font-size: 11px; }
-        .read-toggle, .note-button { background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 2px 4px; }
+        .note-button { background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 2px 4px; }
         .tag-buttons { display: flex; gap: 4px; margin-top: 4px; }
         .tag-buttons .tag-btn { width: 20px; height: 20px; border: 1px solid #ccc; border-radius: 3px; background-color: #f8f9fa; cursor: pointer; font-size: 12px; line-height: 18px; text-align: center; padding: 0; }
         .tag-buttons .tag-btn.red { background-color: #f8d7da; }
@@ -325,10 +323,8 @@
                     threadElement.className = 'thread-item';
                     threadElement.dataset.threadId = thread.id;
 
-                    const isRead = meta.isRead ?? (thread.unread_count === 0);
+                    const isRead = thread.unread_count === 0;
                     const shortValue = meta.shortName || meta.advertTitle || '';
-                    const orderStatus = meta.orderStatus || 'pending';
-                    const shipping = meta.shipping || '';
                     const lastDateRaw = meta.lastDate || thread.last_message_date || thread.last_message?.created_at || thread.last_message?.date || thread.updated_at;
                     const lastDate = formatDate(lastDateRaw);
                     if (!isRead) threadElement.classList.add('unread');
@@ -344,19 +340,6 @@
                             <small class="last-date">Последно: ${lastDate}</small>
                         </div>
                         <div class="tag-buttons">${createTagButtons(meta)}</div>
-                        <div class="thread-meta">
-                            <button class="read-toggle" title="Маркирай прочетено">${isRead ? '📖' : '📬'}</button>
-                            <select class="order-status" name="order-status-${thread.id}">
-                                <option value="pending"${orderStatus === 'pending' ? ' selected' : ''}>Необработена</option>
-                                <option value="done"${orderStatus === 'done' ? ' selected' : ''}>Обработена</option>
-                            </select>
-                            <select class="shipping-method" name="shipping-method-${thread.id}">
-                                <option value=""${shipping === '' ? ' selected' : ''}>Доставка</option>
-                                <option value="speedy"${shipping === 'speedy' ? ' selected' : ''}>Спиди</option>
-                                <option value="econt"${shipping === 'econt' ? ' selected' : ''}>Еконт</option>
-                            </select>
-                            <button class="details-button" title="Обнови детайли">🔄</button>
-                        </div>
                     `;
 
                     const info = threadElement.querySelector('.thread-item-info');
@@ -376,35 +359,6 @@
                         saveThreadMeta(thread.id, meta);
                     });
 
-                    const readBtn = threadElement.querySelector('.read-toggle');
-                    readBtn.addEventListener('click', e => {
-                        e.stopPropagation();
-                        meta.isRead = !meta.isRead;
-                        threadElement.classList.toggle('unread', !meta.isRead);
-                        readBtn.textContent = meta.isRead ? '📖' : '📬';
-                        saveThreadMeta(thread.id, meta);
-                    });
-
-                    const orderSelect = threadElement.querySelector('.order-status');
-                    orderSelect.addEventListener('change', e => {
-                        e.stopPropagation();
-                        meta.orderStatus = e.target.value;
-                        saveThreadMeta(thread.id, meta);
-                    });
-
-                    const shipSelect = threadElement.querySelector('.shipping-method');
-                    shipSelect.addEventListener('change', e => {
-                        e.stopPropagation();
-                        meta.shipping = e.target.value;
-                        saveThreadMeta(thread.id, meta);
-                    });
-
-                    const detailsBtn = threadElement.querySelector('.details-button');
-                    detailsBtn.addEventListener('click', e => {
-                        e.stopPropagation();
-                        refreshThreadDetails(thread.id, threadElement, meta, shortInput);
-                    });
-
                     refreshThreadDetails(thread.id, threadElement, meta, shortInput);
 
                     elements.threadsList.appendChild(threadElement);
@@ -418,8 +372,6 @@
 
         async function refreshThreadDetails(id, threadElement, meta, shortInput) {
             const advertEl = threadElement.querySelector('.advert-title');
-            const btn = threadElement.querySelector('.details-button');
-            if (btn) btn.disabled = true;
             try {
                 const response = await authorizedFetch(`${API_BASE_URL}/api/threads/${id}/details`);
                 if (!response.ok) throw new Error('fetch failed');
@@ -435,8 +387,6 @@
                 }
             } catch (err) {
                 advertEl.textContent = meta.advertTitle || advertEl.textContent;
-            } finally {
-                if (btn) btn.disabled = false;
             }
         }
 
