@@ -440,8 +440,14 @@
                     renderChatTags(threadId);
                     const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
                     if (threadEl) {
+                        threadEl.classList.remove('unread');
                         const dateEl = threadEl.querySelector('.last-date');
                         if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
+                    }
+                    try {
+                        await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark-read`, { method: 'POST' });
+                    } catch (err) {
+                        console.warn('Неуспешно маркиране на прочетено', err);
                     }
                 }
             } catch (error) {
