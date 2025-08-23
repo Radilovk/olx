@@ -36,6 +36,8 @@
         .thread-item-info .short-ad-name { margin-left: 5px; flex-grow: 1; border: 0; border-bottom: 1px dashed #ccc; background: transparent; font-size: 12px; }
         .thread-item-info .short-ad-name:focus { outline: none; border-bottom-color: var(--main-blue); }
         .thread-item.unread p { font-weight: bold; }
+        .conversation-id-wrapper { display: flex; align-items: center; }
+        .badge { background-color: var(--main-blue); color: #fff; border-radius: 50%; min-width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; margin-left: 4px; }
         .note-button { background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 2px 4px; }
         .tag-buttons { display: flex; gap: 4px; margin-top: 4px; }
         .tag-buttons .tag-btn { width: 20px; height: 20px; border: 1px solid #ccc; border-radius: 3px; background-color: #f8f9fa; cursor: pointer; font-size: 12px; line-height: 18px; text-align: center; padding: 0; }
@@ -345,7 +347,7 @@
                     threadElement.innerHTML = `
                         <input type="checkbox" class="thread-checkbox" data-id="${thread.id}" name="thread-checkbox-${thread.id}">
                         <div class="thread-item-info">
-                            <p><span class="conversation-id">${conversationId}</span><input class="short-ad-name" name="short-ad-name-${thread.id}" value="${shortValue}" placeholder="${advertTitle || 'Кратко име'}"></p>
+                            <p><span class="conversation-id-wrapper"><span class="conversation-id">${conversationId}</span>${thread.unread_count > 0 ? `<span class="badge">${thread.unread_count}</span>` : ''}</span><input class="short-ad-name" name="short-ad-name-${thread.id}" value="${shortValue}" placeholder="${advertTitle || 'Кратко име'}"></p>
                             <small class="advert-title">${advertTitle}</small>
                             <small class="last-date">Последно: ${lastDate}</small>
                         </div>
@@ -443,6 +445,8 @@
                         threadEl.classList.remove('unread');
                         const dateEl = threadEl.querySelector('.last-date');
                         if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
+                        const badge = threadEl.querySelector('.badge');
+                        if (badge) badge.remove();
                     }
                     try {
                         await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark-read`, { method: 'POST' });
