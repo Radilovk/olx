@@ -11,8 +11,8 @@
         * { box-sizing: border-box; }
 
         /* --- Sidebar --- */
-        #sidebar { width: 350px; border-right: 1px solid #ccc; height: 100%; display: flex; flex-direction: column; background-color: #fff; }
-        .sidebar-header { padding: 10px 15px; border-bottom: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
+        #sidebar { width: 300px; border-right: 1px solid #ccc; height: 100%; display: flex; flex-direction: column; background-color: #fff; }
+        .sidebar-header { padding: 8px 12px; border-bottom: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
         .sidebar-header h2 { margin: 0; font-size: 1.2em; color: #333; }
         .sidebar-controls { display: flex; align-items: center; font-size: 12px; }
         .sidebar-controls label { margin-right: 10px; }
@@ -26,7 +26,7 @@
         #broadcast-section button:disabled { background-color: #ccc; }
 
         /* --- Thread Item in Sidebar --- */
-        .thread-item { padding: 10px 15px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: flex-start; }
+        .thread-item { padding: 8px 12px; border-bottom: 1px solid #eee; cursor: pointer; display: flex; align-items: flex-start; }
         .thread-item:hover { background-color: #f0f0f0; }
         .thread-item.active { background-color: var(--light-blue); border-right: 3px solid var(--main-blue); }
         .thread-item input[type="checkbox"] { margin-right: 10px; }
@@ -69,16 +69,16 @@
         #analyzer-result { margin-top: 10px; padding: 10px; background-color: #eef; border-radius: 5px; color: #333; }
 
         /* --- Messages View --- */
-        #messages-view { flex-grow: 1; padding: 20px; overflow-y: auto; }
+        #messages-view { flex-grow: 1; padding: 15px; overflow-y: auto; }
         .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 18px; max-width: 70%; word-wrap: break-word; line-height: 1.4; }
         .message.sent { background-color: var(--main-blue); color: white; align-self: flex-end; }
         .message.received { background-color: var(--light-gray); color: black; align-self: flex-start; }
         #messages-container { display: flex; flex-direction: column; }
 
         /* --- Reply Area --- */
-        #reply-area { border-top: 1px solid #ccc; padding: 10px; display: flex; background-color: #f9f9f9; align-items: center; }
+        #reply-area { border-top: 1px solid #ccc; padding: 8px; display: flex; background-color: #f9f9f9; align-items: center; gap: 10px; }
         #reply-area textarea { flex-grow: 1; resize: none; border-radius: 18px; border: 1px solid #ccc; padding: 10px; font-size: 14px; line-height: 1.4; }
-        #reply-area button { margin-left: 10px; padding: 0 20px; height: 38px; border-radius: 18px; border: none; font-weight: bold; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; }
+        #reply-area button { padding: 0 20px; height: 38px; border-radius: 18px; border: none; font-weight: bold; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; }
         #reply-area button#send-button { background-color: var(--main-blue); color: white; }
         #reply-area button#generate-ai-button { background-color: var(--ai-purple); color: white; }
         #reply-area button:disabled { background-color: #ccc; cursor: not-allowed; }
@@ -110,8 +110,11 @@
             --text-dark: #eee;
             --text-light: #bbb;
             --light-gray: #2c2c2c;
+            --main-blue: #2d7bff;
+            --ai-purple: #7a4fa3;
             background-color: var(--gray-bg);
             color: var(--text-dark);
+            font-family: "Segoe UI", Roboto, sans-serif;
         }
 
         body.dark #sidebar { background-color: #1e1e1e; border-right: 1px solid #333; }
@@ -399,11 +402,12 @@
 
                     const conversationId = thread.id;
                     const advertTitle = meta.advertTitle || '';
+                    const displayName = meta.contactName || thread.contact_name || conversationId;
 
                     threadElement.innerHTML = `
                         <input type="checkbox" class="thread-checkbox" data-id="${thread.id}" name="thread-checkbox-${thread.id}">
                         <div class="thread-item-info">
-                            <p><span class="conversation-id-wrapper"><span class="conversation-id">${conversationId}</span>${thread.unread_count > 0 ? `<span class="badge">${thread.unread_count}</span>` : ''}</span><input class="short-ad-name" name="short-ad-name-${thread.id}" value="${shortValue}" placeholder="${advertTitle || 'Кратко име'}"></p>
+                            <p><span class="conversation-id-wrapper"><span class="conversation-id">${displayName}</span>${thread.unread_count > 0 ? `<span class="badge">${thread.unread_count}</span>` : ''}</span><input class="short-ad-name" name="short-ad-name-${thread.id}" value="${shortValue}" placeholder="${advertTitle || 'Кратко име'}"></p>
                             <small class="advert-title">${advertTitle}</small>
                             <small class="last-date">Последно: ${lastDate}</small>
                         </div>
@@ -503,6 +507,8 @@
                         if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
                         const badge = threadEl.querySelector('.badge');
                         if (badge) badge.remove();
+                        const nameEl = threadEl.querySelector('.conversation-id');
+                        if (nameEl) nameEl.textContent = meta.contactName || threadId;
                     }
                     try {
                         await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark-read`, { method: 'POST' });
