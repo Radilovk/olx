@@ -214,11 +214,7 @@
                 return advert;
             }
             try {
-                let response = await authorizedFetch(`${API_BASE_URL}/api/adverts/${id}`);
-                if (response.status === 401) {
-                    await refreshToken();
-                    response = await authorizedFetch(`${API_BASE_URL}/api/adverts/${id}`);
-                }
+                const response = await authorizedFetch(`${API_BASE_URL}/api/adverts/${id}`);
                 if (!response.ok) throw new Error('Advert fetch failed');
                 const advert = await response.json();
                 advertCache.set(id, advert);
@@ -233,11 +229,7 @@
             elements.loader.classList.remove('hidden');
             elements.threadsList.innerHTML = '';
             try {
-                let response = await authorizedFetch(`${API_BASE_URL}/api/threads`);
-                if (response.status === 401) {
-                    await refreshToken();
-                    response = await authorizedFetch(`${API_BASE_URL}/api/threads`);
-                }
+                const response = await authorizedFetch(`${API_BASE_URL}/api/threads`);
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(`${errorData.error} <a href="${AUTH_URL}">Оторизирайте се отново</a>.`);
