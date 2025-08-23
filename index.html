@@ -281,19 +281,19 @@
                     const advertTitle = meta.advertTitle || '';
 
                     threadElement.innerHTML = `
-                        <input type="checkbox" class="thread-checkbox" data-id="${thread.id}">
+                        <input type="checkbox" class="thread-checkbox" data-id="${thread.id}" name="thread-checkbox-${thread.id}">
                         <div class="thread-item-info">
-                            <p><span class="user-name">${interlocutorName}</span><input class="short-ad-name" value="${shortValue}" placeholder="${advertTitle || 'Кратко име'}"></p>
+                            <p><span class="user-name">${interlocutorName}</span><input class="short-ad-name" name="short-ad-name-${thread.id}" value="${shortValue}" placeholder="${advertTitle || 'Кратко име'}"></p>
                             <small class="advert-title">${advertTitle}</small>
                             <small>Последно: ${lastDate}</small>
                         </div>
                         <div class="thread-meta">
                             <button class="read-toggle" title="Маркирай прочетено">${isRead ? '📖' : '📬'}</button>
-                            <select class="order-status">
+                            <select class="order-status" name="order-status-${thread.id}">
                                 <option value="pending"${orderStatus === 'pending' ? ' selected' : ''}>Необработена</option>
                                 <option value="done"${orderStatus === 'done' ? ' selected' : ''}>Обработена</option>
                             </select>
-                            <select class="shipping-method">
+                            <select class="shipping-method" name="shipping-method-${thread.id}">
                                 <option value=""${shipping === '' ? ' selected' : ''}>Доставка</option>
                                 <option value="speedy"${shipping === 'speedy' ? ' selected' : ''}>Спиди</option>
                                 <option value="econt"${shipping === 'econt' ? ' selected' : ''}>Еконт</option>
