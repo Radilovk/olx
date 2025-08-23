@@ -76,8 +76,9 @@
         #messages-container { display: flex; flex-direction: column; }
 
         /* --- Reply Area --- */
-        #reply-area { border-top: 1px solid #ccc; padding: 8px; display: flex; background-color: #f9f9f9; align-items: center; gap: 10px; }
-        #reply-area textarea { flex-grow: 1; resize: none; border-radius: 18px; border: 1px solid #ccc; padding: 10px; font-size: 14px; line-height: 1.4; }
+        #reply-area { border-top: 1px solid #ccc; padding: 8px; display: flex; flex-direction: column; background-color: #f9f9f9; gap: 10px; }
+        #reply-area textarea { width: 100%; resize: none; overflow-y: hidden; border-radius: 18px; border: 1px solid #ccc; padding: 10px; font-size: 14px; line-height: 1.4; }
+        #reply-buttons { display: flex; gap: 10px; }
         #reply-area button { padding: 0 20px; height: 38px; border-radius: 18px; border: none; font-weight: bold; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; }
         #reply-area button#send-button { background-color: var(--main-blue); color: white; }
         #reply-area button#generate-ai-button { background-color: var(--ai-purple); color: white; }
@@ -186,9 +187,11 @@
                 <div id="chat-tags" class="tag-buttons"></div>
                 <div id="messages-view"></div>
                 <div id="reply-area">
-                    <textarea id="reply-text" rows="3" placeholder="Напишете отговор..."></textarea>
-                    <button id="send-button">Изпрати</button>
-                    <button id="generate-ai-button" class="ai-button">✨ Генерирай</button>
+                    <textarea id="reply-text" rows="1" placeholder="Напишете отговор..."></textarea>
+                    <div id="reply-buttons">
+                        <button id="send-button">Изпрати</button>
+                        <button id="generate-ai-button" class="ai-button">✨ Генерирай</button>
+                    </div>
                 </div>
             </div>
 
@@ -289,6 +292,8 @@
             elements.savePromptButton.addEventListener('click', savePrompt);
             elements.closeSettingsButton.addEventListener('click', closeSettingsView);
             elements.backButton.addEventListener('click', showSidebarOnMobile);
+            autoResizeReplyText();
+            elements.replyText.addEventListener('input', autoResizeReplyText);
 
             elements.themeSelect.value = theme;
             elements.themeSelect.addEventListener('change', e => {
@@ -502,29 +507,40 @@
                     renderChatTags(threadId);
                     const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
                     if (threadEl) {
-                        threadEl.classList.remove('unread');
                         const dateEl = threadEl.querySelector('.last-date');
                         if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
-                        const badge = threadEl.querySelector('.badge');
-                        if (badge) badge.remove();
                         const nameEl = threadEl.querySelector('.conversation-id');
                         if (nameEl) nameEl.textContent = meta.contactName || threadId;
                     }
-                    try {
-                        await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark-read`, { method: 'POST' });
-                    } catch (err) {
-                        console.warn('Неуспешно маркиране на прочетено', err);
-                    }
+                    markThreadRead(threadId);
                 }
             } catch (error) {
                 elements.messagesView.innerHTML = `<p class="error">${error.message}</p>`;
             }
         }
 
+        function autoResizeReplyText() {
+            elements.replyText.style.height = 'auto';
+            elements.replyText.style.height = elements.replyText.scrollHeight + 'px';
+        }
+
+        function markThreadRead(threadId) {
+            const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
+            if (threadEl) {
+                threadEl.classList.remove('unread');
+                const badge = threadEl.querySelector('.badge');
+                if (badge) badge.remove();
+            }
+            authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark-read`, { method: 'POST' })
+                .catch(err => console.warn('Неуспешно маркиране на прочетено', err));
+        }
+
         async function sendMessage() {
             if (!currentThreadId) return;
             const text = elements.replyText.value.trim();
             if (!text) return;
+
+            markThreadRead(currentThreadId);
 
             elements.sendButton.disabled = true;
             elements.sendButton.textContent = '...';
@@ -536,8 +552,9 @@
                     body: JSON.stringify({ text })
                 });
                 if (!response.ok) throw new Error((await response.json()).error);
-                
+
                 elements.replyText.value = '';
+                autoResizeReplyText();
                 setTimeout(() => displayMessages(currentThreadId), 1000);
             } catch (error) {
                 alert(`Грешка при изпращане: ${error.message}`);
