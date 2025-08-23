@@ -2,6 +2,7 @@
 <html lang="bg">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OLX Command Center</title>
     <style>
         /* --- General Layout --- */
@@ -79,6 +80,13 @@
         /* --- General Helpers --- */
         .hidden { display: none !important; }
         #loader, #messages-loader { text-align: center; padding: 20px; color: #888; }
+
+        /* --- Responsive Layout --- */
+        @media (max-width: 600px) {
+            body { flex-direction: column; height: 100vh; font-size: 16px; }
+            #sidebar { width: 100%; height: 45%; border-right: none; border-bottom: 1px solid #ccc; }
+            #main-content { width: 100%; height: 55%; }
+        }
     </style>
 </head>
 <body>
@@ -265,7 +273,8 @@
                     const shortValue = meta.shortName || meta.advertTitle || '';
                     const orderStatus = meta.orderStatus || 'pending';
                     const shipping = meta.shipping || '';
-                    const lastDate = formatDate(thread.last_message_date || thread.last_message?.created_at || thread.last_message?.date);
+                    const lastDateRaw = meta.lastDate || thread.last_message_date || thread.last_message?.created_at || thread.last_message?.date || thread.updated_at;
+                    const lastDate = formatDate(lastDateRaw);
                     if (!isRead) threadElement.classList.add('unread');
 
                     const interlocutorName = meta.contactName || thread.interlocutor?.name || 'Неизвестен потребител';
@@ -276,7 +285,7 @@
                         <div class="thread-item-info">
                             <p><span class="user-name">${interlocutorName}</span><input class="short-ad-name" name="short-ad-name-${thread.id}" value="${shortValue}" placeholder="${advertTitle || 'Кратко име'}"></p>
                             <small class="advert-title">${advertTitle}</small>
-                            <small>Последно: ${lastDate}</small>
+                            <small class="last-date">Последно: ${lastDate}</small>
                         </div>
                         <div class="thread-meta">
                             <button class="read-toggle" title="Маркирай прочетено">${isRead ? '📖' : '📬'}</button>
@@ -369,9 +378,12 @@
                 const data = await response.json();
                 meta.advertTitle = data.advertTitle || '';
                 meta.contactName = data.contactName || userEl.textContent;
+                meta.lastDate = data.lastMessageDate || meta.lastDate;
                 saveThreadMeta(id, meta);
                 advertEl.textContent = meta.advertTitle;
                 userEl.textContent = meta.contactName;
+                const dateEl = threadElement.querySelector('.last-date');
+                if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
                 if (!meta.shortName) {
                     shortInput.placeholder = meta.advertTitle || 'Кратко име';
                 }
@@ -397,7 +409,7 @@
                 const messages = await response.json();
                 elements.messagesView.innerHTML = '<div id="messages-container"></div>';
                 const container = document.getElementById('messages-container');
-                
+
                 if (!messages || messages.length === 0) {
                     container.innerHTML = '<p>Няма съобщения в този разговор.</p>';
                 } else {
@@ -408,6 +420,23 @@
                         container.appendChild(msgElement);
                     });
                     elements.messagesView.scrollTop = elements.messagesView.scrollHeight;
+
+                    const meta = getThreadMeta(threadId);
+                    const lastMsg = messages[messages.length - 1];
+                    meta.lastDate = lastMsg?.created_at || lastMsg?.date || meta.lastDate;
+                    const clientMsg = messages.find(m => m.type === 'received');
+                    if (clientMsg) {
+                        meta.contactName = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name || meta.contactName;
+                    }
+                    saveThreadMeta(threadId, meta);
+                    const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
+                    if (threadEl) {
+                        const dateEl = threadEl.querySelector('.last-date');
+                        if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
+        
+                        const userEl = threadEl.querySelector('.user-name');
+                        if (userEl) userEl.textContent = meta.contactName;
+                    }
                 }
             } catch (error) {
                 elements.messagesView.innerHTML = `<p class="error">${error.message}</p>`;
