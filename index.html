@@ -5,7 +5,7 @@
     <title>OLX Command Center</title>
     <style>
         /* --- General Layout --- */
-        :root { --main-blue: #007bff; --light-blue: #e0eafc; --ai-purple: #563d7c; --gray-bg: #f4f4f5; --light-gray: #e9e9eb; --text-dark: #111; --text-light: #555; }
+        :root { --main-blue: #007bff; --light-blue: #e0eafc; --ai-purple: #563d7c; --gray-bg: #f4f4f5; --light-gray: #e9e9eb; --text-dark: #111; --text-light: #555; --unread-color: #ff4d4f; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; margin: 0; height: 100vh; background-color: var(--gray-bg); font-size: 14px; }
         * { box-sizing: border-box; }
 
@@ -35,6 +35,8 @@
         .thread-item-info .short-ad-name { margin-left: 5px; flex-grow: 1; border: 0; border-bottom: 1px dashed #ccc; background: transparent; font-size: 12px; }
         .thread-item-info .short-ad-name:focus { outline: none; border-bottom-color: var(--main-blue); }
         .thread-item.unread p { font-weight: bold; }
+        .unread-badge { width: 8px; height: 8px; background-color: var(--unread-color); border-radius: 50%; margin-right: 5px; visibility: hidden; }
+        .thread-item.unread .unread-badge { visibility: visible; }
         .thread-meta { display: flex; flex-direction: column; gap: 4px; margin-left: 5px; }
         .thread-meta select, .thread-meta button { font-size: 11px; }
         .read-toggle, .note-button { background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; padding: 2px 4px; }
@@ -140,6 +142,7 @@
     </div>
 
     <script src="auth.js"></script>
+    <script src="threads.js"></script>
     <script>
         // --- CONFIGURATION ---
         const API_BASE_URL = 'https://olx.radilov-k.workers.dev';
@@ -248,7 +251,6 @@
                             if (advert && advert.data) {
                                 meta.advertTitle = advert.data.title || meta.advertTitle;
                                 meta.advertCreatedAt = advert.data.created_at || meta.advertCreatedAt;
-                                meta.contactName = advert.data.contact?.name || meta.contactName;
                             } else {
                                 meta.advertTitle = meta.advertTitle || '(невалидна обява)';
                             }
@@ -258,129 +260,13 @@
                         saveThreadMeta(thread.id, meta);
                     }
 
-                    const threadElement = document.createElement('div');
-                    threadElement.className = 'thread-item';
-                    threadElement.dataset.threadId = thread.id;
-
-                    const isRead = meta.isRead ?? (thread.unread_count === 0);
-                    const shortValue = meta.shortName || meta.advertTitle || '';
-                    const orderStatus = meta.orderStatus || 'pending';
-                    const shipping = meta.shipping || '';
-                    const lastDate = formatDate(thread.last_message_date);
-                    if (!isRead) threadElement.classList.add('unread');
-
-                    const interlocutorName = meta.contactName || thread.interlocutor?.name || 'Неизвестен потребител';
-                    const advertTitle = meta.advertTitle || '';
-
-                    threadElement.innerHTML = `
-                        <input type="checkbox" class="thread-checkbox" data-id="${thread.id}" name="thread-checkbox-${thread.id}">
-                        <div class="thread-item-info">
-                            <p><span class="user-name">${interlocutorName}</span><input class="short-ad-name" name="short-ad-name-${thread.id}" value="${shortValue}" placeholder="${advertTitle || 'Кратко име'}"></p>
-                            <small class="advert-title">${advertTitle}</small>
-                            <small>Последно: ${lastDate}</small>
-                        </div>
-                        <div class="thread-meta">
-                            <button class="read-toggle" title="Маркирай прочетено">${isRead ? '📖' : '📬'}</button>
-                            <select class="order-status" name="order-status-${thread.id}">
-                                <option value="pending"${orderStatus === 'pending' ? ' selected' : ''}>Необработена</option>
-                                <option value="done"${orderStatus === 'done' ? ' selected' : ''}>Обработена</option>
-                            </select>
-                            <select class="shipping-method" name="shipping-method-${thread.id}">
-                                <option value=""${shipping === '' ? ' selected' : ''}>Доставка</option>
-                                <option value="speedy"${shipping === 'speedy' ? ' selected' : ''}>Спиди</option>
-                                <option value="econt"${shipping === 'econt' ? ' selected' : ''}>Еконт</option>
-                            </select>
-                            <button class="note-button" title="Бележка">📝</button>
-                            <button class="details-button" title="Обнови детайли">🔄</button>
-                        </div>
-                    `;
-
-                    const info = threadElement.querySelector('.thread-item-info');
-                    info.addEventListener('click', () => {
-                        document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
-                        threadElement.classList.add('active');
-                        displayMessages(thread.id);
-                    });
-
-                    const shortInput = threadElement.querySelector('.short-ad-name');
-                    shortInput.addEventListener('change', e => {
-                        e.stopPropagation();
-                        meta.shortName = e.target.value.trim();
-                        saveThreadMeta(thread.id, meta);
-                    });
-
-                    const readBtn = threadElement.querySelector('.read-toggle');
-                    readBtn.addEventListener('click', e => {
-                        e.stopPropagation();
-                        meta.isRead = !meta.isRead;
-                        threadElement.classList.toggle('unread', !meta.isRead);
-                        readBtn.textContent = meta.isRead ? '📖' : '📬';
-                        saveThreadMeta(thread.id, meta);
-                    });
-
-                    const orderSelect = threadElement.querySelector('.order-status');
-                    orderSelect.addEventListener('change', e => {
-                        e.stopPropagation();
-                        meta.orderStatus = e.target.value;
-                        saveThreadMeta(thread.id, meta);
-                    });
-
-                    const shipSelect = threadElement.querySelector('.shipping-method');
-                    shipSelect.addEventListener('change', e => {
-                        e.stopPropagation();
-                        meta.shipping = e.target.value;
-                        saveThreadMeta(thread.id, meta);
-                    });
-
-                    const noteBtn = threadElement.querySelector('.note-button');
-                    noteBtn.addEventListener('click', e => {
-                        e.stopPropagation();
-                        const newNote = prompt('Бележка за клиента:', meta.note || '');
-                        if (newNote !== null) {
-                            meta.note = newNote;
-                            saveThreadMeta(thread.id, meta);
-                        }
-                    });
-
-                    const detailsBtn = threadElement.querySelector('.details-button');
-                    detailsBtn.addEventListener('click', e => {
-                        e.stopPropagation();
-                        refreshThreadDetails(thread.id, threadElement, meta, shortInput);
-                    });
-
-                    refreshThreadDetails(thread.id, threadElement, meta, shortInput);
-
+                    const threadElement = createThreadElement(thread, meta);
                     elements.threadsList.appendChild(threadElement);
                 }
             } catch (error) {
                 elements.threadsList.innerHTML = `<p style="color: red; padding: 15px;">${error.message}</p>`;
             } finally {
                 elements.loader.classList.add('hidden');
-            }
-        }
-
-        async function refreshThreadDetails(id, threadElement, meta, shortInput) {
-            const advertEl = threadElement.querySelector('.advert-title');
-            const userEl = threadElement.querySelector('.user-name');
-            const btn = threadElement.querySelector('.details-button');
-            if (btn) btn.disabled = true;
-            try {
-                const response = await authorizedFetch(`${API_BASE_URL}/api/threads/${id}/details`);
-                if (!response.ok) throw new Error('fetch failed');
-                const data = await response.json();
-                meta.advertTitle = data.advertTitle || '';
-                meta.contactName = data.contactName || userEl.textContent;
-                saveThreadMeta(id, meta);
-                advertEl.textContent = meta.advertTitle;
-                userEl.textContent = meta.contactName;
-                if (!meta.shortName) {
-                    shortInput.placeholder = meta.advertTitle || 'Кратко име';
-                }
-            } catch (err) {
-                advertEl.textContent = meta.advertTitle || advertEl.textContent;
-                userEl.textContent = meta.contactName || userEl.textContent;
-            } finally {
-                if (btn) btn.disabled = false;
             }
         }
 
