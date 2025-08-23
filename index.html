@@ -55,6 +55,22 @@
         #back-button, #close-settings-button { margin: 5px; padding: 5px 10px; border: 1px solid #ccc; background: none; border-radius: 5px; cursor: pointer; }
         #back-button { display: none; }
 
+        #close-chat-button {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            border: none;
+            border-radius: 50%;
+            background: var(--main-blue);
+            color: #fff;
+            cursor: pointer;
+            opacity: 0.7;
+            z-index: 1001;
+        }
+        #close-chat-button:hover { opacity: 1; }
+
         /* --- Main Content Area --- */
         #main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; }
         #content-area { flex-grow: 1; display: flex; flex-direction: column; }
@@ -145,6 +161,8 @@
     </style>
 </head>
 <body>
+
+    <button id="close-chat-button" class="hidden">✖</button>
 
     <!-- SIDEBAR: Списък с разговори и инструменти за групови съобщения -->
     <div id="sidebar">
@@ -268,6 +286,7 @@
             themeSelect: document.getElementById('theme-select'),
             mainContent: document.getElementById('main-content'),
             backButton: document.getElementById('back-button'),
+            closeChatButton: document.getElementById('close-chat-button'),
         };
 
         // --- EVENT LISTENERS ---
@@ -292,6 +311,7 @@
             elements.savePromptButton.addEventListener('click', savePrompt);
             elements.closeSettingsButton.addEventListener('click', closeSettingsView);
             elements.backButton.addEventListener('click', showSidebarOnMobile);
+            elements.closeChatButton.addEventListener('click', closeChat);
             autoResizeReplyText();
             elements.replyText.addEventListener('input', autoResizeReplyText);
 
@@ -309,6 +329,11 @@
                 view.classList.add('hidden');
             });
             viewToShow.classList.remove('hidden');
+            if (viewToShow === elements.chatView) {
+                elements.closeChatButton.classList.remove('hidden');
+            } else {
+                elements.closeChatButton.classList.add('hidden');
+            }
         }
 
         function isMobile() {
@@ -330,6 +355,13 @@
                 elements.backButton.classList.add('hidden');
                 showView(elements.placeholderView);
             }
+        }
+
+        function closeChat() {
+            currentThreadId = null;
+            document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
+            showView(elements.placeholderView);
+            showSidebarOnMobile();
         }
 
         // --- CORE FUNCTIONS ---
