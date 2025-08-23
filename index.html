@@ -215,10 +215,6 @@
             }
             try {
                 let response = await authorizedFetch(`https://www.olx.bg/api/partner/adverts/${id}`);
-                if (response.status === 401) {
-                    await refreshToken();
-                    response = await authorizedFetch(`https://www.olx.bg/api/partner/adverts/${id}`);
-                }
                 if (!response.ok) throw new Error('Advert fetch failed');
                 const advert = await response.json();
                 advertCache.set(id, advert);
@@ -234,10 +230,6 @@
             elements.threadsList.innerHTML = '';
             try {
                 let response = await authorizedFetch(`${API_BASE_URL}/api/threads`);
-                if (response.status === 401) {
-                    await refreshToken();
-                    response = await authorizedFetch(`${API_BASE_URL}/api/threads`);
-                }
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(`${errorData.error} <a href="${AUTH_URL}">Оторизирайте се отново</a>.`);
