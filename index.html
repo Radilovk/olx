@@ -146,6 +146,7 @@
         
         // --- STATE ---
         let currentThreadId = null;
+        const advertCache = new Map();
 
         // --- DOM ELEMENTS ---
         const elements = {
@@ -213,20 +214,32 @@
                     return;
                 }
 
-                threads.forEach(thread => {
+                for (const thread of threads) {
                     const threadElement = document.createElement('div');
                     threadElement.className = 'thread-item';
                     threadElement.dataset.threadId = thread.id;
 
                     const meta = getThreadMeta(thread.id);
+                    if (thread.advert_id) {
+                        try {
+                            const advert = await getAdvert(thread.advert_id);
+                            meta.advertTitle = advert.title;
+                            meta.advertCreatedAt = advert.created_at;
+                            meta.advertContactName = advert.contact?.name || '';
+                            saveThreadMeta(thread.id, meta);
+                        } catch (e) {
+                            console.error('Грешка при зареждане на обявата', e);
+                        }
+                    }
+
                     const isRead = meta.isRead ?? (thread.unread_count === 0);
-                    const shortName = meta.shortName || '';
+                    const shortName = meta.shortName || meta.advertTitle || '';
                     const orderStatus = meta.orderStatus || 'pending';
                     const shipping = meta.shipping || '';
                     const lastDate = formatDate(thread.last_message_date);
                     if (!isRead) threadElement.classList.add('unread');
 
-                    const interlocutorName = thread.interlocutor?.name ?? 'Неизвестен потребител';
+                    const interlocutorName = meta.advertContactName || thread.interlocutor?.name || 'Неизвестен потребител';
 
                     threadElement.innerHTML = `
                         <input type="checkbox" class="thread-checkbox" data-id="${thread.id}">
@@ -297,7 +310,7 @@
                     });
 
                     elements.threadsList.appendChild(threadElement);
-                });
+                }
             } catch (error) {
                 elements.threadsList.innerHTML = `<p style="color: red; padding: 15px;">${error.message}</p>`;
             } finally {
@@ -493,6 +506,23 @@
 
         function saveThreadMeta(id, data) {
             localStorage.setItem(`thread_meta_${id}`, JSON.stringify(data));
+        }
+
+        async function getAdvert(id) {
+            if (advertCache.has(id)) return advertCache.get(id);
+            const key = `advert_${id}`;
+            const cached = localStorage.getItem(key);
+            if (cached) {
+                const data = JSON.parse(cached);
+                advertCache.set(id, data);
+                return data;
+            }
+            const response = await fetch(`https://www.olx.bg/api/partner/adverts/${id}`);
+            if (!response.ok) throw new Error('Неуспешно зареждане на обявата');
+            const data = await response.json();
+            advertCache.set(id, data);
+            localStorage.setItem(key, JSON.stringify(data));
+            return data;
         }
 
         function formatDate(dateStr) {
