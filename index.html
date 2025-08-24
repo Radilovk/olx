@@ -92,7 +92,7 @@
 
         /* --- Reply Area --- */
         #reply-area { border-top: 1px solid #ccc; padding: 8px; display: flex; flex-direction: column; background-color: #f9f9f9; gap: 10px; }
-        #reply-area textarea { width: 100%; resize: none; overflow-y: hidden; border-radius: 18px; border: 1px solid #ccc; padding: 10px; font-size: 14px; line-height: 1.4; }
+        #reply-area textarea { width: 100%; resize: none; overflow-y: hidden; border-radius: 18px; border: 1px solid #ccc; padding: 10px; font-size: 14px; line-height: 1.4; min-height: 40px; }
         #reply-buttons { display: flex; gap: 10px; }
         #reply-area button { padding: 0 20px; height: 38px; border-radius: 18px; border: none; font-weight: bold; cursor: pointer; transition: background-color 0.2s; white-space: nowrap; }
         #reply-area button#send-button { background-color: var(--main-blue); color: white; }
@@ -541,7 +541,8 @@
 
         function autoResizeReplyText() {
             elements.replyText.style.height = 'auto';
-            elements.replyText.style.height = elements.replyText.scrollHeight + 'px';
+            const minHeight = parseInt(getComputedStyle(elements.replyText).minHeight) || 0;
+            elements.replyText.style.height = Math.max(elements.replyText.scrollHeight, minHeight) + 'px';
         }
 
         function markThreadRead(threadId) {
@@ -591,6 +592,7 @@
             if (!currentThreadId) return;
             setButtonLoading(elements.generateAiButton, true, 'Мисли...');
             elements.replyText.value = 'AI генерира отговор, моля изчакайте...';
+            autoResizeReplyText();
 
             try {
                 const response = await authorizedFetch(`${API_BASE_URL}/api/generate-reply`, {
@@ -602,8 +604,10 @@
                 
                 const data = await response.json();
                 elements.replyText.value = data.reply;
+                autoResizeReplyText();
             } catch (error) {
                 elements.replyText.value = `Грешка при генериране: ${error.message}`;
+                autoResizeReplyText();
             } finally {
                 setButtonLoading(elements.generateAiButton, false, '✨ Генерирай');
             }
