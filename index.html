@@ -437,7 +437,7 @@
 
                     const conversationId = thread.id;
                     const advertTitle = meta.advertTitle || '';
-                    const displayName = meta.contactName || thread.contact_name || conversationId;
+                    const displayName = meta.deliveryInfo?.name || meta.contactName || thread.contact_name || conversationId;
                     const shortTitle = getFirstWords(advertTitle, 2);
 
                     threadElement.innerHTML = `
@@ -530,7 +530,7 @@
                         const dateEl = threadEl.querySelector('.last-date');
                         if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
                         const nameEl = threadEl.querySelector('.conversation-id');
-                        if (nameEl) nameEl.textContent = meta.contactName || threadId;
+                        if (nameEl) nameEl.textContent = meta.deliveryInfo?.name || meta.contactName || threadId;
                     }
                     markThreadRead(threadId);
                 }
@@ -758,6 +758,10 @@
                 if (tagContainer) {
                     tagContainer.innerHTML = createTagButtons(meta);
                     attachTagButtonEvents(tagContainer, meta, threadId);
+                }
+                const nameEl = threadEl.querySelector('.conversation-id');
+                if (nameEl) {
+                    nameEl.textContent = meta.deliveryInfo?.name || meta.contactName || threadId;
                 }
             }
             if (currentThreadId === threadId) {
