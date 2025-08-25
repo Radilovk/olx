@@ -416,6 +416,15 @@
 
                 for (const thread of threads) {
                     const meta = getThreadMeta(thread.id);
+
+                    if (!meta.contactName && meta.deliveryInfo && meta.deliveryInfo.name) {
+                        const nameForDisplay = getFirstWords(meta.deliveryInfo.name, 2);
+                        if (nameForDisplay) {
+                            meta.contactName = nameForDisplay;
+                            saveThreadMeta(thread.id, meta);
+                        }
+                    }
+
                     if (thread.advert_id) {
                         try {
                             const advert = await getAdvert(thread.advert_id);
@@ -531,7 +540,9 @@
                         messages.find(m => m.type !== 'sent') ||
                         messages[0];
                     if (clientMsg) {
-                        meta.contactName = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name || meta.contactName;
+                        const nameCandidate = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name;
+                        const nameForDisplay = getFirstWords(nameCandidate, 2);
+                        if (nameForDisplay) meta.contactName = nameForDisplay;
                     }
                     saveThreadMeta(threadId, meta);
                     renderChatTags(threadId);
