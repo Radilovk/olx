@@ -711,6 +711,22 @@
             `;
         }
 
+        async function sendAutoMessage(threadId, text) {
+            try {
+                markThreadRead(threadId);
+                await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/send-message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                if (currentThreadId === threadId) {
+                    setTimeout(() => displayMessages(threadId), 1000);
+                }
+            } catch (err) {
+                console.warn('Неуспешно изпращане на автоматично съобщение', err);
+            }
+        }
+
         function attachTagButtonEvents(container, meta, threadId) {
             const redBtn = container.querySelector('.red');
             const blueBtn = container.querySelector('.blue');
@@ -732,11 +748,14 @@
                 updateThreadTagButtons(threadId);
             });
 
-            checkBtn.addEventListener('click', e => {
+            checkBtn.addEventListener('click', async e => {
                 e.stopPropagation();
                 meta.checked = !meta.checked;
                 saveThreadMeta(threadId, meta);
                 updateThreadTagButtons(threadId);
+                if (meta.checked) {
+                    await sendAutoMessage(threadId, 'Изпратено');
+                }
             });
 
             infoBtn.addEventListener('click', e => {
