@@ -501,10 +501,15 @@
                 const data = await response.json();
                 meta.advertTitle = data.advertTitle || '';
                 meta.lastDate = data.lastMessageDate || meta.lastDate;
+                if (!meta.contactName && data.contactName) {
+                    meta.contactName = getFirstWords(data.contactName, 2);
+                }
                 saveThreadMeta(id, meta);
                 advertEl.textContent = getFirstWords(meta.advertTitle, 2);
                 const dateEl = threadElement.querySelector('.last-date');
                 if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
+                const nameEl = threadElement.querySelector('.conversation-id');
+                if (nameEl) nameEl.textContent = meta.contactName || id;
             } catch (err) {
                 advertEl.textContent = getFirstWords(meta.advertTitle, 2) || advertEl.textContent;
             }
