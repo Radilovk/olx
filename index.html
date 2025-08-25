@@ -447,7 +447,7 @@
 
                     const conversationId = thread.id;
                     const advertTitle = meta.advertTitle || '';
-                    const displayName = meta.contactName || thread.contact_name || conversationId;
+                    const displayName = getDisplayName(meta, conversationId, thread.contact_name);
                     const shortTitle = getFirstWords(advertTitle, 2);
 
                     threadElement.innerHTML = `
@@ -530,8 +530,9 @@
                     const clientMsg = messages.find(m => m.type === 'received') ||
                         messages.find(m => m.type !== 'sent') ||
                         messages[0];
-                    if (clientMsg) {
-                        meta.contactName = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name || meta.contactName;
+                    if (clientMsg && !(meta.deliveryInfo && meta.deliveryInfo.name)) {
+                        const rawName = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name;
+                        if (rawName) meta.contactName = getFirstWords(rawName, 2);
                     }
                     saveThreadMeta(threadId, meta);
                     renderChatTags(threadId);
@@ -540,7 +541,7 @@
                         const dateEl = threadEl.querySelector('.last-date');
                         if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
                         const nameEl = threadEl.querySelector('.conversation-id');
-                        if (nameEl) nameEl.textContent = meta.contactName || threadId;
+                        if (nameEl) nameEl.textContent = getDisplayName(meta, threadId);
                     }
                     markThreadRead(threadId);
                 }
@@ -788,6 +789,10 @@
                     tagContainer.innerHTML = createTagButtons(meta);
                     attachTagButtonEvents(tagContainer, meta, threadId);
                 }
+                const nameEl = threadEl.querySelector('.conversation-id');
+                if (nameEl) {
+                    nameEl.textContent = getDisplayName(meta, threadId);
+                }
             }
             if (currentThreadId === threadId) {
                 renderChatTags(threadId);
@@ -836,6 +841,9 @@
                     phone: document.getElementById('info-phone').value.trim(),
                     address: document.getElementById('info-address').value.trim()
                 };
+                if (meta.deliveryInfo.name) {
+                    meta.contactName = getFirstWords(meta.deliveryInfo.name, 2);
+                }
                 saveThreadMeta(threadId, meta);
                 updateThreadTagButtons(threadId);
             });
@@ -919,6 +927,11 @@
 
         function saveThreadMeta(id, data) {
             localStorage.setItem(`thread_meta_${id}`, JSON.stringify(data));
+        }
+
+        function getDisplayName(meta, threadId, fallbackName = '') {
+            const raw = (meta.deliveryInfo && meta.deliveryInfo.name) || meta.contactName || fallbackName || threadId;
+            return getFirstWords(raw, 2);
         }
 
         function getFirstWords(text, count) {
