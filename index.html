@@ -513,6 +513,31 @@
             } catch (err) {
                 advertEl.textContent = getFirstWords(meta.advertTitle, 2) || advertEl.textContent;
             }
+
+            if (!meta.contactName) {
+                try {
+                    const resp = await authorizedFetch(`${API_BASE_URL}/api/analyze-thread`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ threadId: id, question: 'Извлечи името на клиента. Формат: Name: <...>' })
+                    });
+                    if (resp.ok) {
+                        const result = await resp.json();
+                        const answer = result.answer || '';
+                        const match = answer.match(/Name[:\-]?\s*(.*)/i);
+                        if (match) {
+                            const fullName = match[1].trim();
+                            meta.deliveryInfo = meta.deliveryInfo || {};
+                            meta.deliveryInfo.name = fullName;
+                            meta.contactName = getFirstWords(fullName, 2);
+                            saveThreadMeta(id, meta);
+                        }
+                    }
+                } catch (e) { }
+            }
+
+            const nameEl = threadElement.querySelector('.conversation-id');
+            if (nameEl) nameEl.textContent = meta.contactName || id;
         }
 
         async function displayMessages(threadId) {
