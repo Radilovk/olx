@@ -416,6 +416,15 @@
 
                 for (const thread of threads) {
                     const meta = getThreadMeta(thread.id);
+
+                    if (!meta.contactName && meta.deliveryInfo && meta.deliveryInfo.name) {
+                        const nameForDisplay = getFirstWords(meta.deliveryInfo.name, 2);
+                        if (nameForDisplay) {
+                            meta.contactName = nameForDisplay;
+                            saveThreadMeta(thread.id, meta);
+                        }
+                    }
+
                     if (thread.advert_id) {
                         try {
                             const advert = await getAdvert(thread.advert_id);
@@ -447,7 +456,11 @@
 
                     const conversationId = thread.id;
                     const advertTitle = meta.advertTitle || '';
-                    const displayName = meta.contactName || thread.contact_name || conversationId;
+                    const displayName = meta.contactName || getFirstWords(meta.deliveryInfo?.name, 2) || thread.contact_name || conversationId;
+                    if (!meta.contactName && meta.deliveryInfo?.name) {
+                        meta.contactName = getFirstWords(meta.deliveryInfo.name, 2);
+                        saveThreadMeta(thread.id, meta);
+                    }
                     const shortTitle = getFirstWords(advertTitle, 2);
 
                     threadElement.innerHTML = `
@@ -488,6 +501,9 @@
                 const data = await response.json();
                 meta.advertTitle = data.advertTitle || '';
                 meta.lastDate = data.lastMessageDate || meta.lastDate;
+                if (!meta.contactName && data.contactName) {
+                    meta.contactName = getFirstWords(data.contactName, 2);
+                }
                 saveThreadMeta(id, meta);
                 advertEl.textContent = getFirstWords(meta.advertTitle, 2);
                 const dateEl = threadElement.querySelector('.last-date');
@@ -495,6 +511,31 @@
             } catch (err) {
                 advertEl.textContent = getFirstWords(meta.advertTitle, 2) || advertEl.textContent;
             }
+
+            if (!meta.contactName) {
+                try {
+                    const resp = await authorizedFetch(`${API_BASE_URL}/api/analyze-thread`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ threadId: id, question: 'Извлечи името на клиента. Формат: Name: <...>' })
+                    });
+                    if (resp.ok) {
+                        const result = await resp.json();
+                        const answer = result.answer || '';
+                        const match = answer.match(/Name[:\-]?\s*(.*)/i);
+                        if (match) {
+                            const fullName = match[1].trim();
+                            meta.deliveryInfo = meta.deliveryInfo || {};
+                            meta.deliveryInfo.name = fullName;
+                            meta.contactName = getFirstWords(fullName, 2);
+                            saveThreadMeta(id, meta);
+                        }
+                    }
+                } catch (e) { }
+            }
+
+            const nameEl = threadElement.querySelector('.conversation-id');
+            if (nameEl) nameEl.textContent = meta.contactName || id;
         }
 
         async function displayMessages(threadId) {
@@ -531,7 +572,9 @@
                         messages.find(m => m.type !== 'sent') ||
                         messages[0];
                     if (clientMsg) {
-                        meta.contactName = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name || meta.contactName;
+                        const nameCandidate = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name;
+                        const nameForDisplay = getFirstWords(nameCandidate, 2);
+                        if (nameForDisplay) meta.contactName = nameForDisplay;
                     }
                     saveThreadMeta(threadId, meta);
                     renderChatTags(threadId);
@@ -836,9 +879,30 @@
                     phone: document.getElementById('info-phone').value.trim(),
                     address: document.getElementById('info-address').value.trim()
                 };
+                const nameForDisplay = getFirstWords(meta.deliveryInfo.name, 2);
+                if (nameForDisplay) meta.contactName = nameForDisplay;
                 saveThreadMeta(threadId, meta);
-                updateThreadTagButtons(threadId);
+                const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
+                if (threadEl) {
+                    const nameEl = threadEl.querySelector('.conversation-id');
+                    if (nameEl) nameEl.textContent = meta.contactName || threadId;
+                }
             });
+            const nameInput = document.getElementById('info-name');
+            const syncName = () => {
+                meta.deliveryInfo = meta.deliveryInfo || {};
+                meta.deliveryInfo.name = nameInput.value.trim();
+                const nameForDisplay = getFirstWords(meta.deliveryInfo.name, 2);
+                if (nameForDisplay) meta.contactName = nameForDisplay;
+                saveThreadMeta(threadId, meta);
+                const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
+                if (threadEl) {
+                    const nameEl = threadEl.querySelector('.conversation-id');
+                    if (nameEl) nameEl.textContent = meta.contactName || threadId;
+                }
+            };
+            nameInput.addEventListener('input', syncName);
+            syncName();
         }
 
         function openNoteModal(threadId) {
