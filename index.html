@@ -836,8 +836,15 @@
                     phone: document.getElementById('info-phone').value.trim(),
                     address: document.getElementById('info-address').value.trim()
                 };
+                const nameForDisplay = getFirstWords(meta.deliveryInfo.name, 2);
+                if (nameForDisplay) meta.contactName = nameForDisplay;
                 saveThreadMeta(threadId, meta);
                 updateThreadTagButtons(threadId);
+                const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
+                if (threadEl) {
+                    const nameEl = threadEl.querySelector('.conversation-id');
+                    if (nameEl) nameEl.textContent = meta.contactName || threadId;
+                }
             });
         }
 
