@@ -850,7 +850,7 @@
         async function openInfoModal(threadId) {
             const meta = getThreadMeta(threadId);
             let info = meta.deliveryInfo || {};
-            if (!info.name && !info.phone && !info.address) {
+            if (!info.name || !info.phone || !info.address) {
                 try {
                     const response = await authorizedFetch(`${API_BASE_URL}/api/analyze-thread`, {
                         method: 'POST',
@@ -864,9 +864,9 @@
                         const phoneMatch = answer.match(/Phone[:\-]?\s*([^;\n]+)/i);
                         const addressMatch = answer.match(/Address[:\-]?\s*([^;\n]+)/i);
                         info = {
-                            name: nameMatch ? nameMatch[1].trim() : '',
-                            phone: phoneMatch ? phoneMatch[1].trim() : '',
-                            address: addressMatch ? addressMatch[1].trim() : ''
+                            name: info.name || (nameMatch ? nameMatch[1].trim() : ''),
+                            phone: info.phone || (phoneMatch ? phoneMatch[1].trim() : ''),
+                            address: info.address || (addressMatch ? addressMatch[1].trim() : '')
                         };
                         meta.deliveryInfo = info;
                         const nameForDisplay = getFirstWords(info.name, 2);
