@@ -860,14 +860,23 @@
                     if (response.ok) {
                         const data = await response.json();
                         const answer = data.answer || '';
-                        const nameMatch = answer.match(/Name[:\-]?\s*(.*)/i);
-                        const phoneMatch = answer.match(/Phone[:\-]?\s*(.*)/i);
-                        const addressMatch = answer.match(/Address[:\-]?\s*(.*)/i);
+                        const nameMatch = answer.match(/Name[:\-]?\s*([^;\n]+)/i);
+                        const phoneMatch = answer.match(/Phone[:\-]?\s*([^;\n]+)/i);
+                        const addressMatch = answer.match(/Address[:\-]?\s*([^;\n]+)/i);
                         info = {
                             name: nameMatch ? nameMatch[1].trim() : '',
                             phone: phoneMatch ? phoneMatch[1].trim() : '',
                             address: addressMatch ? addressMatch[1].trim() : ''
                         };
+                        meta.deliveryInfo = info;
+                        const nameForDisplay = getFirstWords(info.name, 2);
+                        if (nameForDisplay) meta.contactName = nameForDisplay;
+                        saveThreadMeta(threadId, meta);
+                        const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
+                        if (threadEl) {
+                            const nameEl = threadEl.querySelector('.conversation-id');
+                            if (nameEl) nameEl.textContent = meta.contactName || threadId;
+                        }
                     }
                 } catch (e) { }
             }
