@@ -10,7 +10,11 @@
     const token = getToken();
     if (token) headers.set('Authorization', `Bearer ${token}`);
     options.headers = headers;
-    return fetch(url, options);
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      throw new Error('Няма връзка с API-то');
+    }
   }
   window.authorizedFetch = authorizedFetch;
 })();
