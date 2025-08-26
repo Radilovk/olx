@@ -325,7 +325,7 @@
             });
             elements.settingsButton.addEventListener('click', showSettingsView);
             elements.selectAllCheckbox.addEventListener('change', handleSelectAll);
-            elements.sortSelect.addEventListener('change', fetchThreads);
+            elements.sortSelect.addEventListener('change', () => fetchThreads());
             elements.threadsList.addEventListener('change', e => {
                 if (e.target.classList.contains('thread-checkbox')) updateBroadcastCounter();
             });
@@ -479,7 +479,7 @@
                         }
 
                         meta.lastDate = thread.last_message_date || thread.last_message?.created_at || thread.updated_at;
-                        const lastDateRaw = meta.lastDate || thread.last_message?.date || thread.updated_at;
+                        const lastDateRaw = meta.lastDate || thread.last_message?.date || thread.updated_at || 0;
                         const lastMsgType = meta.lastSenderType || thread.last_message?.type;
                         if (lastMsgType) meta.lastSenderType = lastMsgType;
                         const isRead = thread.unread_count === 0 || (meta.lastRead && new Date(meta.lastRead) >= new Date(meta.lastDate));
@@ -503,7 +503,7 @@
                         processed.push({ thread, meta, lastDateRaw, isRead, lastDate });
                     }
 
-                    processed.sort((a, b) => new Date(b.lastDateRaw) - new Date(a.lastDateRaw));
+                    processed.sort((a, b) => new Date(b.lastDateRaw || 0) - new Date(a.lastDateRaw || 0));
 
                     for (const { thread, meta, lastDateRaw, isRead, lastDate } of processed) {
                         const within48 = now - new Date(lastDateRaw).getTime() <= 48 * 60 * 60 * 1000;
