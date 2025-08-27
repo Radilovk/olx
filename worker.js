@@ -428,7 +428,7 @@ function withCors(response) {
 }
 
 function jsonResponse(data, status = 200) {
-  return withCors(new Response(JSON.stringify(data), {
+  return withCors(new Response(JSON.stringify(data, null, 2), {
     status,
     headers: { 'Content-Type': 'application/json' },
   }));
