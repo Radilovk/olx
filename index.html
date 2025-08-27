@@ -429,8 +429,7 @@
 
                 if (!threads) {
                     try {
-                        const url = `${API_BASE_URL}/api/threads${force ? '?forceRefresh=1' : ''}`;
-                        const response = await authorizedFetch(url);
+                        const response = await authorizedFetch(`${API_BASE_URL}/api/threads`);
                         if (!response.ok) {
                             const errorData = await response.json();
                             throw new Error(`${errorData.error} <a href="${AUTH_URL}">Оторизирайте се отново</a>.`);
@@ -544,7 +543,7 @@
                             showThreadOnMobile();
                         });
 
-                        refreshThreadDetails(thread.id, threadElement, meta, force);
+                        refreshThreadDetails(thread.id, threadElement, meta);
 
                         elements.threadsList.appendChild(threadElement);
                     }
@@ -555,11 +554,10 @@
             }
         }
 
-        async function refreshThreadDetails(id, threadElement, meta, force = false) {
+        async function refreshThreadDetails(id, threadElement, meta) {
             const advertEl = threadElement.querySelector('.advert-title');
             try {
-                const url = `${API_BASE_URL}/api/threads/${id}/details${force ? '?forceRefresh=1' : ''}`;
-                const response = await authorizedFetch(url);
+                const response = await authorizedFetch(`${API_BASE_URL}/api/threads/${id}/details`);
                 if (!response.ok) throw new Error('fetch failed');
                 const data = await response.json();
                 meta.advertTitle = data.advertTitle || '';
@@ -603,7 +601,7 @@
             if (nameEl) nameEl.textContent = meta.contactName || id;
         }
 
-        async function displayMessages(threadId, force = false) {
+        async function displayMessages(threadId) {
             currentThreadId = threadId;
             showView(elements.chatView);
             renderChatTags(threadId);
@@ -612,16 +610,12 @@
             elements.analyzerInput.value = '';
 
             let messages = null;
-            if (!force) {
-                const cached = loadMessagesFromCache(threadId);
-                if (cached && Date.now() - cached.timestamp < MESSAGES_TTL) {
-                    messages = cached.data;
-                }
-            }
-            if (!messages) {
+            const cached = loadMessagesFromCache(threadId);
+            if (cached && Date.now() - cached.timestamp < MESSAGES_TTL) {
+                messages = cached.data;
+            } else {
                 try {
-                    const url = `${API_BASE_URL}/api/threads/${threadId}/messages${force ? '?forceRefresh=1' : ''}`;
-                    const response = await authorizedFetch(url);
+                    const response = await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/messages`);
                     if (!response.ok) throw new Error('Неуспешно зареждане на съобщенията.');
                     messages = await response.json();
                     saveMessagesToCache(threadId, messages);
@@ -726,7 +720,7 @@
                 localStorage.removeItem(`thread_messages_${currentThreadId}`);
                 elements.replyText.value = '';
                 autoResizeReplyText();
-                setTimeout(() => displayMessages(currentThreadId, true), 1000);
+                setTimeout(() => displayMessages(currentThreadId), 1000);
             } catch (error) {
                 alert(`Грешка при изпращане: ${error.message}`);
             } finally {
@@ -867,7 +861,7 @@
                     body: JSON.stringify({ text })
                 });
                 if (currentThreadId === threadId) {
-                    setTimeout(() => displayMessages(threadId, true), 1000);
+                    setTimeout(() => displayMessages(threadId), 1000);
                 }
             } catch (err) {
                 console.warn('Неуспешно изпращане на автоматично съобщение', err);
