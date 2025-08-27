@@ -645,6 +645,7 @@
             try {
                 const resp = await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark-read`, {
                     method: 'POST',
+                    keepalive: true,
                     headers: { 'Content-Type': 'application/json' },
                     body: '{}'
                 });
