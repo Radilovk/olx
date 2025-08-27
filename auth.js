@@ -6,11 +6,19 @@
   }
 
   async function authorizedFetch(url, options = {}) {
-    const headers = new Headers(options.headers || {});
+    const { throwOnError, ...fetchOptions } = options;
+    const headers = new Headers(fetchOptions.headers || {});
     const token = getToken();
     if (token) headers.set('Authorization', `Bearer ${token}`);
-    options.headers = headers;
-    return fetch(url, options);
+    fetchOptions.headers = headers;
+    try {
+      return await fetch(url, fetchOptions);
+    } catch (err) {
+      if (throwOnError) {
+        throw new Error(`Network error: ${err.message}`);
+      }
+      return { ok: false, error: err.message };
+    }
   }
   window.authorizedFetch = authorizedFetch;
 })();

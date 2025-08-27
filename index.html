@@ -568,6 +568,8 @@
                             meta.contactName = getFirstWords(fullName, 2);
                             saveThreadMeta(id, meta);
                         }
+                    } else {
+                        alert(`Грешка при анализ на нишката: ${resp.error || resp.statusText || 'Неизвестна грешка'}`);
                     }
                 } catch (e) { }
             }
@@ -650,11 +652,11 @@
                     body: '{}'
                 });
                 if (!resp.ok) {
-                    console.warn('Неуспешно маркиране на прочетено', resp.status, resp.statusText);
+                    alert(`Неуспешно маркиране на прочетено: ${resp.error || resp.statusText || 'Неизвестна грешка'}`);
                     return;
                 }
             } catch (err) {
-                console.warn('Неуспешно маркиране на прочетено', err);
+                alert(`Неуспешно маркиране на прочетено: ${err.message}`);
                 return;
             }
 
