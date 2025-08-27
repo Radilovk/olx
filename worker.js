@@ -39,7 +39,7 @@ export default {
       if (messageMatch && method === 'GET') return this.getMessages(request, env, ctx, messageMatch[1]);
 
       const detailsMatch = path.match(/^\/api\/threads\/(\d+)\/details$/);
-      if (detailsMatch && method === 'GET') return this.getThreadDetails(request, env, ctx, detailsMatch[1]);
+      if (detailsMatch && method === 'GET') return this.getThreadDetails(request, env, detailsMatch[1]);
 
       const sendMatch = path.match(/^\/api\/threads\/(\d+)\/send-message$/);
       if (sendMatch && method === 'POST') return this.sendMessage(request, env, sendMatch[1]);
@@ -124,16 +124,7 @@ export default {
     return jsonResponse(advertData);
   },
 
-  async getThreadDetails(request, env, ctx, threadId) {
-    const cacheKey = new Request(request.url, request);
-    const { searchParams } = new URL(request.url);
-    const forceRefreshParam = searchParams.get('forceRefresh');
-    const forceRefresh = forceRefreshParam === '1' || forceRefreshParam === 'true';
-    if (!forceRefresh) {
-      const cached = await caches.default.match(cacheKey);
-      if (cached) return cached;
-    }
-
+  async getThreadDetails(request, env, threadId) {
     const accessToken = await getValidAccessToken(env);
     if (!accessToken) return jsonResponse({ error: "Authentication required." }, 401);
 
@@ -148,21 +139,13 @@ export default {
     let lastMessageDate = "";
 
     if (threadData?.advert_id) {
-      const advertKey = `ADVERT_DETAILS_${threadData.advert_id}`;
       try {
-        const cachedAdvert = await env.OLX_TOKENS.get(advertKey);
-        if (cachedAdvert) {
-          const advertData = JSON.parse(cachedAdvert);
+        const advertRes = await fetch(`https://www.olx.bg/api/partner/adverts/${threadData.advert_id}`, {
+          headers: { "Authorization": `Bearer ${accessToken}`, "Version": "2.0" }
+        });
+        if (advertRes.ok) {
+          const advertData = (await advertRes.json()).data;
           advertTitle = advertData?.title || "";
-        } else {
-          const advertRes = await fetch(`https://www.olx.bg/api/partner/adverts/${threadData.advert_id}`, {
-            headers: { "Authorization": `Bearer ${accessToken}`, "Version": "2.0" }
-          });
-          if (advertRes.ok) {
-            const advertData = (await advertRes.json()).data;
-            advertTitle = advertData?.title || "";
-            await env.OLX_TOKENS.put(advertKey, JSON.stringify(advertData), { expirationTtl: 300 });
-          }
         }
       } catch (e) {
         // Игнорираме грешките от обявата и връщаме празно заглавие
@@ -194,15 +177,7 @@ export default {
     if (!contactName) {
       contactName = threadData?.interlocutor?.name || "";
     }
-
-    const response = jsonResponse({ advertTitle, contactName, lastMessageDate });
-    response.headers.set('Cache-Control', 'max-age=60');
-    if (ctx && ctx.waitUntil) {
-      ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
-    } else {
-      await caches.default.put(cacheKey, response.clone());
-    }
-    return response;
+    return jsonResponse({ advertTitle, contactName, lastMessageDate });
   },
   
   async generateReply(request, env) {
