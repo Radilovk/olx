@@ -182,26 +182,44 @@ export default {
     return callGemini(env.GEMINI_API_KEY, fullPrompt).then(reply => jsonResponse({ reply }));
   },
 
-  async analyzeThread(request, env) {
-      const { threadId, question } = await request.json();
-      if (!threadId || !question) return jsonResponse({ error: "threadId and question are required" }, 400);
+    async analyzeThread(request, env) {
+        try {
+            const { threadId, question } = await request.json();
+            if (!threadId || !question) return jsonResponse({ error: "threadId and question are required" }, 400);
 
-      const accessToken = await getValidAccessToken(env);
-      if (!accessToken) return jsonResponse({ error: "Authentication required." }, 401);
+            const accessToken = await getValidAccessToken(env);
+            if (!accessToken) return jsonResponse({ error: "Authentication required." }, 401);
 
-      const res = await fetch(`https://www.olx.bg/api/partner/threads/${threadId}/messages`, {
-        headers: { "Authorization": `Bearer ${accessToken}`, "Version": "2.0" }
-      });
-      if (!res.ok) throw new Error(`OLX API Error [analyzeThread]: ${res.status}`);
-      const data = await res.json();
-      const messages = Array.isArray(data.data) ? data.data : [];
-      if (messages.length === 0) return jsonResponse({ error: "Thread contains no messages." }, 404);
-      const messageHistory = messages.map(m => `${m.type === 'sent' ? 'Аз' : 'Клиент'}: ${m.text}`).join('\n');
-      
-      const fullPrompt = `Ти си AI анализатор. Твоята задача е да отговориш на въпроса на потребителя, като използваш САМО информация от предоставения разговор. Ако информацията не съществува в разговора, отговори с "Информацията не е налична в разговора."\n\nРАЗГОВОР:\n---\n${messageHistory}\n---\n\nВЪПРОС НА ПОТРЕБИТЕЛЯ: ${question}\n\nАНАЛИТИЧЕН ОТГОВОР:`;
+            const res = await fetch(`https://www.olx.bg/api/partner/threads/${threadId}/messages`, {
+              headers: { "Authorization": `Bearer ${accessToken}`, "Version": "2.0" }
+            });
+            if (!res.ok) throw new Error(`OLX API Error [analyzeThread]: ${res.status}`);
 
-      return callGemini(env.GEMINI_API_KEY, fullPrompt).then(answer => jsonResponse({ answer }));
-  },
+            let data;
+            try {
+                data = await res.json();
+            } catch (err) {
+                console.error("Failed to parse response in analyzeThread:", err);
+                throw new Error("Missing data");
+            }
+
+            const messages = Array.isArray(data?.data) ? data.data : null;
+            if (!messages) throw new Error("Missing data");
+            if (messages.length === 0) return jsonResponse({ error: "Thread contains no messages." }, 404);
+
+            const messageHistory = messages.map(m => `${m.type === 'sent' ? 'Аз' : 'Клиент'}: ${m.text}`).join('\n');
+
+            const fullPrompt = `Ти си AI анализатор. Твоята задача е да отговориш на въпроса на потребителя, като използваш САМО информация от предоставения разговор. Ако информацията не съществува в разговора, отговори с "Информацията не е налична в разговора."\n\nРАЗГОВОР:\n---\n${messageHistory}\n---\n\nВЪПРОС НА ПОТРЕБИТЕЛЯ: ${question}\n\nАНАЛИТИЧЕН ОТГОВОР:`;
+
+            return callGemini(env.GEMINI_API_KEY, fullPrompt).then(answer => jsonResponse({ answer }));
+        } catch (error) {
+            console.error("analyzeThread error:", error);
+            if (error.message === "Missing data") {
+                return new Response(JSON.stringify({ error: 'Missing data' }), { status: 400 });
+            }
+            throw error;
+        }
+    },
 
   async sendMessage(request, env, threadId) {
       const { text } = await request.json();
