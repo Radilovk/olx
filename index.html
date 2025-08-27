@@ -266,9 +266,6 @@
         // --- CONFIGURATION ---
         const API_BASE_URL = 'https://olx.radilov-k.workers.dev';
         const AUTH_URL = 'https://www.olx.bg/oauth/authorize?response_type=code&client_id=200383&redirect_uri=https://olx.radilov-k.workers.dev/callback&scope=read+write+v2&state=random_string_12345';
-        const THREADS_CACHE_KEY = 'threads_cache';
-        const THREADS_TTL = 5 * 60 * 1000; // 5 минути
-        const MESSAGES_TTL = 5 * 60 * 1000;
         
         // --- STATE ---
         let currentThreadId = null;
@@ -317,10 +314,7 @@
                 elements.mainContent.classList.add('hidden');
             }
 
-            elements.refreshButton.addEventListener('click', () => {
-                clearCache();
-                fetchThreads(true);
-            });
+            elements.refreshButton.addEventListener('click', fetchThreads);
             elements.settingsButton.addEventListener('click', showSettingsView);
             elements.selectAllCheckbox.addEventListener('change', handleSelectAll);
             elements.sortSelect.addEventListener('change', fetchThreads);
@@ -414,44 +408,27 @@
             }
         }
 
-        async function fetchThreads(force = false) {
+        async function fetchThreads() {
             elements.loader.classList.remove('hidden');
             elements.threadsList.innerHTML = '';
-
-            let threads = null;
-            if (!force) {
-                const cached = loadThreadsFromCache();
-                if (cached && Date.now() - cached.timestamp < THREADS_TTL) {
-                    threads = cached.data;
+            try {
+                const response = await authorizedFetch(`${API_BASE_URL}/api/threads`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`${errorData.error} <a href="${AUTH_URL}">Оторизирайте се отново</a>.`);
                 }
-            }
-
-            if (!threads) {
-                try {
-                    const response = await authorizedFetch(`${API_BASE_URL}/api/threads`);
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(`${errorData.error} <a href="${AUTH_URL}">Оторизирайте се отново</a>.`);
-                    }
-                    threads = await response.json();
-                    saveThreadsToCache(threads);
-                } catch (error) {
-                    elements.threadsList.innerHTML = `<p style="padding: 15px;">${error.message}</p>`;
+                const threads = await response.json();
+                if (!threads || threads.length === 0) {
+                    elements.threadsList.innerHTML = '<p style="padding: 15px;">Няма намерени разговори.</p>';
                     return;
                 }
-            }
 
-            if (!threads || threads.length === 0) {
-                elements.threadsList.innerHTML = '<p style="padding: 15px;">Няма намерени разговори.</p>';
-                return;
-            }
+                const option = elements.sortSelect.value;
+                const now = Date.now();
+                const processed = [];
 
-            const option = elements.sortSelect.value;
-            const now = Date.now();
-            const processed = [];
-
-            for (const thread of threads) {
-                const meta = getThreadMeta(thread.id);
+                for (const thread of threads) {
+                    const meta = getThreadMeta(thread.id);
 
                     if (!meta.contactName && meta.deliveryInfo && meta.deliveryInfo.name) {
                         const nameForDisplay = getFirstWords(meta.deliveryInfo.name, 2);
@@ -608,62 +585,54 @@
             elements.analyzerResult.classList.add('hidden');
             elements.analyzerInput.value = '';
 
-            let messages = null;
-            const cached = loadMessagesFromCache(threadId);
-            if (cached && Date.now() - cached.timestamp < MESSAGES_TTL) {
-                messages = cached.data;
-            } else {
-                try {
-                    const response = await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/messages`);
-                    if (!response.ok) throw new Error('Неуспешно зареждане на съобщенията.');
-                    messages = await response.json();
-                    saveMessagesToCache(threadId, messages);
-                } catch (error) {
-                    elements.messagesView.innerHTML = `<p class="error">${error.message}</p>`;
-                    return;
-                }
-            }
+            try {
+                const response = await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/messages`);
+                if (!response.ok) throw new Error('Неуспешно зареждане на съобщенията.');
+                
+                const messages = await response.json();
+                elements.messagesView.innerHTML = '<div id="messages-container"></div>';
+                const container = document.getElementById('messages-container');
 
-            elements.messagesView.innerHTML = '<div id="messages-container"></div>';
-            const container = document.getElementById('messages-container');
+                if (!messages || messages.length === 0) {
+                    container.innerHTML = '<p>Няма съобщения в този разговор.</p>';
+                } else {
+                    messages.forEach(msg => {
+                        const msgElement = document.createElement('div');
+                        msgElement.className = `message ${msg.type}`;
+                        msgElement.textContent = msg.text;
+                        container.appendChild(msgElement);
+                    });
+                    elements.messagesView.scrollTop = elements.messagesView.scrollHeight;
 
-            if (!messages || messages.length === 0) {
-                container.innerHTML = '<p>Няма съобщения в този разговор.</p>';
-            } else {
-                messages.forEach(msg => {
-                    const msgElement = document.createElement('div');
-                    msgElement.className = `message ${msg.type}`;
-                    msgElement.textContent = msg.text;
-                    container.appendChild(msgElement);
-                });
-                elements.messagesView.scrollTop = elements.messagesView.scrollHeight;
-
-                const meta = getThreadMeta(threadId);
-                const lastMsg = messages[messages.length - 1];
-                meta.lastDate = lastMsg?.created_at || lastMsg?.date || meta.lastDate;
-                meta.lastSenderType = lastMsg?.type || meta.lastSenderType;
-                if (meta.checked && meta.checkedAt && meta.lastDate && (new Date(meta.lastDate) - new Date(meta.checkedAt) > 48 * 60 * 60 * 1000)) {
-                    meta.checked = false;
-                    meta.checkedAt = null;
+                    const meta = getThreadMeta(threadId);
+                    const lastMsg = messages[messages.length - 1];
+                    meta.lastDate = lastMsg?.created_at || lastMsg?.date || meta.lastDate;
+                    meta.lastSenderType = lastMsg?.type || meta.lastSenderType;
+                    if (meta.checked && meta.checkedAt && meta.lastDate && (new Date(meta.lastDate) - new Date(meta.checkedAt) > 48 * 60 * 60 * 1000)) {
+                        meta.checked = false;
+                        meta.checkedAt = null;
+                    }
+                    const clientMsg = messages.find(m => m.type === 'received') ||
+                        messages.find(m => m.type !== 'sent') ||
+                        messages[0];
+                    if (clientMsg) {
+                        const nameCandidate = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name;
+                        const nameForDisplay = getFirstWords(nameCandidate, 2);
+                        if (nameForDisplay) meta.contactName = nameForDisplay;
+                    }
+                    saveThreadMeta(threadId, meta);
+                    renderChatTags(threadId);
+                    const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
+                    if (threadEl) {
+                        const dateEl = threadEl.querySelector('.last-date');
+                        if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
+                        const nameEl = threadEl.querySelector('.conversation-id');
+                        if (nameEl) nameEl.textContent = meta.contactName || threadId;
+                    }
+                    markThreadRead(threadId);
                 }
-                const clientMsg = messages.find(m => m.type === 'received') ||
-                    messages.find(m => m.type !== 'sent') ||
-                    messages[0];
-                if (clientMsg) {
-                    const nameCandidate = clientMsg.user_name || clientMsg.user?.name || clientMsg.sender?.name;
-                    const nameForDisplay = getFirstWords(nameCandidate, 2);
-                    if (nameForDisplay) meta.contactName = nameForDisplay;
-                }
-                saveThreadMeta(threadId, meta);
-                renderChatTags(threadId);
-                const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
-                if (threadEl) {
-                    const dateEl = threadEl.querySelector('.last-date');
-                    if (dateEl) dateEl.textContent = `Последно: ${formatDate(meta.lastDate)}`;
-                    const nameEl = threadEl.querySelector('.conversation-id');
-                    if (nameEl) nameEl.textContent = meta.contactName || threadId;
-                }
-                markThreadRead(threadId);
+            } catch (error) {
+                elements.messagesView.innerHTML = `<p class="error">${error.message}</p>`;
             }
         }
 
@@ -716,7 +685,6 @@
                 });
                 if (!response.ok) throw new Error((await response.json()).error);
 
-                localStorage.removeItem(`thread_messages_${currentThreadId}`);
                 elements.replyText.value = '';
                 autoResizeReplyText();
                 setTimeout(() => displayMessages(currentThreadId), 1000);
@@ -1074,37 +1042,6 @@
         }
 
         // --- HELPER FUNCTIONS ---
-        function loadThreadsFromCache() {
-            try {
-                return JSON.parse(localStorage.getItem(THREADS_CACHE_KEY) || 'null');
-            } catch {
-                return null;
-            }
-        }
-
-        function saveThreadsToCache(threads) {
-            localStorage.setItem(THREADS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: threads }));
-        }
-
-        function loadMessagesFromCache(id) {
-            try {
-                return JSON.parse(localStorage.getItem(`thread_messages_${id}`) || 'null');
-            } catch {
-                return null;
-            }
-        }
-
-        function saveMessagesToCache(id, messages) {
-            localStorage.setItem(`thread_messages_${id}`, JSON.stringify({ timestamp: Date.now(), data: messages }));
-        }
-
-        function clearCache() {
-            localStorage.removeItem(THREADS_CACHE_KEY);
-            Object.keys(localStorage).forEach(k => {
-                if (k.startsWith('thread_messages_')) localStorage.removeItem(k);
-            });
-        }
-
         function getThreadMeta(id) {
             return JSON.parse(localStorage.getItem(`thread_meta_${id}`) || '{}');
         }
