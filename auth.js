@@ -10,12 +10,7 @@
     const token = getToken();
     if (token) headers.set('Authorization', `Bearer ${token}`);
     options.headers = headers;
-    try {
-      return await fetch(url, options);
-    } catch (err) {
-      console.error('Network error:', err);
-      throw err;
-    }
+    return fetch(url, options);
   }
   window.authorizedFetch = authorizedFetch;
 })();
