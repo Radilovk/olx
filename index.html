@@ -451,11 +451,10 @@
                         }
                     }
 
-                    meta.lastDate = thread.last_message_date || thread.last_message?.created_at || thread.updated_at;
-                    const lastDateRaw = meta.lastDate || thread.last_message?.date || thread.updated_at;
+                    const lastDateRaw = meta.lastDate || thread.last_message_date || thread.last_message?.created_at || thread.last_message?.date || thread.updated_at;
                     const lastMsgType = meta.lastSenderType || thread.last_message?.type;
                     if (lastMsgType) meta.lastSenderType = lastMsgType;
-                    const isRead = thread.unread_count === 0 || (meta.lastRead && new Date(meta.lastRead) >= new Date(meta.lastDate));
+                    const isRead = thread.unread_count === 0 || (meta.lastRead && new Date(meta.lastRead) >= new Date(lastDateRaw));
                     const lastDate = formatDate(lastDateRaw);
 
                     if (meta.checked && meta.checkedAt) {
