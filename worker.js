@@ -33,10 +33,10 @@ export default {
     try {
       // --- РУТЕР ЗА API ПЪТИЩА ---
       if (path === "/callback" && method === 'GET') return this.handleOAuthCallback(request, env);
-      if (path === "/api/threads" && method === 'GET') return this.getThreads(request, env, ctx);
-
+      if (path === "/api/threads" && method === 'GET') return this.getThreads(request, env);
+      
       const messageMatch = path.match(/^\/api\/threads\/(\d+)\/messages$/);
-      if (messageMatch && method === 'GET') return this.getMessages(request, env, ctx, messageMatch[1]);
+      if (messageMatch && method === 'GET') return this.getMessages(request, env, messageMatch[1]);
 
       const detailsMatch = path.match(/^\/api\/threads\/(\d+)\/details$/);
       if (detailsMatch && method === 'GET') return this.getThreadDetails(request, env, detailsMatch[1]);
@@ -70,48 +70,24 @@ export default {
 
   // --- API ФУНКЦИИ ---
 
-  async getThreads(request, env, ctx) {
-    const cacheKey = new Request(request.url, request);
-    const { searchParams } = new URL(request.url);
-    const forceRefreshParam = searchParams.get('forceRefresh');
-    const forceRefresh = forceRefreshParam === '1' || forceRefreshParam === 'true';
-    if (!forceRefresh) {
-      const cached = await caches.default.match(cacheKey);
-      if (cached) return cached;
-    }
-
+  async getThreads(request, env) {
     const accessToken = await getValidAccessToken(env);
     if (!accessToken) return jsonResponse({ error: "Authentication required." }, 401);
 
     const threadsResponse = await fetch("https://www.olx.bg/api/partner/threads?limit=50&offset=0", { headers: { "Authorization": `Bearer ${accessToken}`, "Version": "2.0" } });
     if (!threadsResponse.ok) throw new Error(`OLX API Error [getThreads]: ${threadsResponse.status}`);
     const threadsData = await threadsResponse.json();
-    const response = jsonResponse(threadsData.data);
-    response.headers.set('Cache-Control', 'max-age=60');
-    ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
-    return response;
+    return jsonResponse(threadsData.data);
   },
 
-  async getMessages(request, env, ctx, threadId) {
-    const cacheKey = new Request(request.url, request);
-    const { searchParams } = new URL(request.url);
-    const forceRefreshParam = searchParams.get('forceRefresh');
-    const forceRefresh = forceRefreshParam === '1' || forceRefreshParam === 'true';
-    if (!forceRefresh) {
-      const cached = await caches.default.match(cacheKey);
-      if (cached) return cached;
-    }
-
+  async getMessages(request, env, threadId) {
     const accessToken = await getValidAccessToken(env);
     if (!accessToken) return jsonResponse({ error: "Authentication required." }, 401);
 
     const messagesResponse = await fetch(`https://www.olx.bg/api/partner/threads/${threadId}/messages`, { headers: { "Authorization": `Bearer ${accessToken}`, "Version": "2.0" } });
     if (!messagesResponse.ok) throw new Error(`OLX API Error [getMessages]: ${messagesResponse.status}`);
     const messagesData = await messagesResponse.json();
-    const response = jsonResponse(messagesData.data);
-    response.headers.set('Cache-Control', 'max-age=60');
-    ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
-    return response;
+    return jsonResponse(messagesData.data);
   },
 
   async getAdvert(request, env, advertId) {
