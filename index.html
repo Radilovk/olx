@@ -684,15 +684,13 @@
 
         async function markThreadRead(threadId) {
             try {
-                const resp = await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark-read`, { method: 'POST' });
+                const resp = await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark-read`, { method: 'POST', keepalive: true });
                 if (!resp.ok) {
                     console.warn('Неуспешно маркиране на прочетено', resp.status, resp.statusText);
-                    alert('Неуспешно маркиране на прочетено');
                     return;
                 }
             } catch (err) {
                 console.warn('Неуспешно маркиране на прочетено', err);
-                alert(err.message || 'Неуспешно маркиране на прочетено');
                 return;
             }
 
