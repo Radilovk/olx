@@ -189,8 +189,14 @@ export default {
       const accessToken = await getValidAccessToken(env);
       if (!accessToken) return jsonResponse({ error: "Authentication required." }, 401);
 
-      const messagesRes = await fetch(`https://www.olx.bg/api/partner/threads/${threadId}/messages`, { headers: { "Authorization": `Bearer ${accessToken}`, "Version": "2.0" } }).then(res => res.json());
-      const messageHistory = messagesRes.data.map(m => `${m.type === 'sent' ? 'Аз' : 'Клиент'}: ${m.text}`).join('\n');
+      const res = await fetch(`https://www.olx.bg/api/partner/threads/${threadId}/messages`, {
+        headers: { "Authorization": `Bearer ${accessToken}`, "Version": "2.0" }
+      });
+      if (!res.ok) throw new Error(`OLX API Error [analyzeThread]: ${res.status}`);
+      const data = await res.json();
+      const messages = Array.isArray(data.data) ? data.data : [];
+      if (messages.length === 0) return jsonResponse({ error: "Thread contains no messages." }, 404);
+      const messageHistory = messages.map(m => `${m.type === 'sent' ? 'Аз' : 'Клиент'}: ${m.text}`).join('\n');
       
       const fullPrompt = `Ти си AI анализатор. Твоята задача е да отговориш на въпроса на потребителя, като използваш САМО информация от предоставения разговор. Ако информацията не съществува в разговора, отговори с "Информацията не е налична в разговора."\n\nРАЗГОВОР:\n---\n${messageHistory}\n---\n\nВЪПРОС НА ПОТРЕБИТЕЛЯ: ${question}\n\nАНАЛИТИЧЕН ОТГОВОР:`;
 
