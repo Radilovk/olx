@@ -12,18 +12,9 @@
     options.headers = headers;
 
     try {
-      const resp = await fetch(url, options);
-      if (!resp.ok) {
-        let msg = resp.statusText;
-        try {
-          const errData = await resp.json();
-          msg = errData?.error || errData?.message || msg;
-        } catch (_) {}
-        throw new Error(msg);
-      }
-      return resp;
+      return await fetch(url, options);
     } catch (err) {
-      throw new Error('Network error: ' + err.message);
+      throw err;
     }
   }
   window.authorizedFetch = authorizedFetch;
