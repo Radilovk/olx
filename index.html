@@ -733,13 +733,17 @@
                 });
                 const genData = await genRes.json();
                 if (!genRes.ok) throw new Error(genData.error);
-                await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/send-message`, {
+                const sendRes = await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/send-message`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text: genData.reply })
                 });
+                if (!sendRes.ok) {
+                    const sendData = await sendRes.json().catch(() => ({}));
+                    throw new Error(sendData.error || sendRes.statusText);
+                }
             } catch (err) {
-                console.error('Автоматичният отговор се провали:', err);
+                alert(`Автоматичният отговор се провали: ${err.message}`);
             }
         }
 
@@ -825,16 +829,21 @@
         async function sendAutoMessage(threadId, text) {
             try {
                 markThreadRead(threadId);
-                await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/send-message`, {
+                const resp = await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/send-message`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text })
                 });
+                if (!resp.ok) {
+                    const errData = await resp.json().catch(() => ({}));
+                    alert(`Автоматичното съобщение не бе изпратено: ${errData.error || resp.statusText}`);
+                    return;
+                }
                 if (currentThreadId === threadId) {
                     setTimeout(() => displayMessages(threadId), 1000);
                 }
             } catch (err) {
-                console.warn('Неуспешно изпращане на автоматично съобщение', err);
+                alert(`Автоматичното съобщение не бе изпратено: ${err.message}`);
             }
         }
 
