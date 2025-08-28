@@ -120,6 +120,18 @@
         .hidden { display: none !important; }
         #loader, #messages-loader { text-align: center; padding: 20px; color: #888; }
 
+        .error-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: #f44336;
+            color: #fff;
+            text-align: center;
+            padding: 10px;
+            z-index: 1000;
+        }
+
         /* --- Responsive Layout --- */
         @media (max-width: 600px) {
             body { flex-direction: column; height: 100vh; font-size: 16px; }
@@ -166,6 +178,7 @@
         body.dark #settings-view textarea { border: 1px solid #333; background-color: #2c2c2c; color: var(--text-dark); }
         body.dark #status-message { color: var(--text-dark); }
         body.dark #modal { background: #2c2c2c; color: var(--text-dark); }
+        body.dark .error-banner { background-color: #b71c1c; }
     </style>
 </head>
 <body>
@@ -642,19 +655,28 @@
         }
 
         async function markThreadRead(threadId) {
-            try {
-                const resp = await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark_as_read`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: '{}'
-                });
-                if (!resp.ok) {
-                    console.warn('Неуспешно маркиране на прочетено', resp.status, resp.statusText);
-                    return;
+            const maxRetries = 3;
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const resp = await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark_as_read`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: '{}'
+                    });
+                    if (!resp.ok) {
+                        console.warn('Неуспешно маркиране на прочетено', resp.status, resp.statusText);
+                        return;
+                    }
+                    break;
+                } catch (err) {
+                    if (attempt === maxRetries - 1) {
+                        console.warn('Неуспешно маркиране на прочетено', err);
+                        showErrorBanner(`Грешка при маркиране на прочетено: ${err.message}`);
+                        return;
+                    }
+                    const delay = 500 * 2 ** attempt;
+                    await new Promise(res => setTimeout(res, delay));
                 }
-            } catch (err) {
-                console.warn('Неуспешно маркиране на прочетено', err);
-                return;
             }
 
             const threadEl = document.querySelector(`.thread-item[data-thread-id="${threadId}"]`);
@@ -1079,6 +1101,14 @@
         function showStatusMessage(message, type = '') {
             elements.statusMessage.textContent = message;
             elements.statusMessage.className = `status-message ${type}`;
+        }
+
+        function showErrorBanner(message) {
+            const banner = document.createElement('div');
+            banner.className = 'error-banner';
+            banner.textContent = message;
+            document.body.appendChild(banner);
+            setTimeout(() => banner.remove(), 5000);
         }
 
     </script>
