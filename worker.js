@@ -44,7 +44,7 @@ export default {
       const sendMatch = path.match(/^\/api\/threads\/(\d+)\/send-message$/);
       if (sendMatch && method === 'POST') return this.sendMessage(request, env, sendMatch[1]);
 
-      const markReadMatch = path.match(/^\/api\/threads\/(\d+)\/mark_as_read$/);
+      const markReadMatch = path.match(/^\/api\/threads\/([\w-]+)\/mark_as_read$/);
       if (markReadMatch && method === 'POST') return this.markThreadRead(request, env, markReadMatch[1]);
 
       const advertMatch = path.match(/^\/api\/adverts\/(\d+)$/);
