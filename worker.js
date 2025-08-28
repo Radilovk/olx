@@ -44,7 +44,7 @@ export default {
       const sendMatch = path.match(/^\/api\/threads\/(\d+)\/send-message$/);
       if (sendMatch && method === 'POST') return this.sendMessage(request, env, sendMatch[1]);
 
-      const markReadMatch = path.match(/^\/api\/threads\/(\d+)\/mark-read$/);
+      const markReadMatch = path.match(/^\/api\/threads\/(\d+)\/mark_as_read$/);
       if (markReadMatch && method === 'POST') return this.markThreadRead(request, env, markReadMatch[1]);
 
       const advertMatch = path.match(/^\/api\/adverts\/(\d+)$/);
@@ -242,7 +242,7 @@ export default {
       const accessToken = await getValidAccessToken(env);
       if (!accessToken) return jsonResponse({ error: "Authentication required." }, 401);
 
-      const response = await fetch(`https://www.olx.bg/api/partner/threads/${threadId}/mark-read`, {
+      const response = await fetch(`https://www.olx.bg/api/partner/threads/${threadId}/mark_as_read`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${accessToken}`, 'Version': '2.0' }
       });

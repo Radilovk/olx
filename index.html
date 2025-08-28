@@ -643,7 +643,7 @@
 
         async function markThreadRead(threadId) {
             try {
-                const resp = await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark-read`, {
+                const resp = await authorizedFetch(`${API_BASE_URL}/api/threads/${threadId}/mark_as_read`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: '{}'
